@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TRPG Scenario Writer</title>
+<style>
+:root{--bg:#0f1115;--panel:#171a21;--panel2:#1e222b;--accent:#4c8bf5;--text:#e6e8ee;--muted:#9aa3b2}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui;background:linear-gradient(#0f1115,#0b0d11);color:var(--text);height:100vh;overflow:hidden}
+.layout{display:grid;grid-template-columns:260px 1fr 360px;height:100vh}
+
+/* mobile layout */
+@media (max-width:900px){
+.layout{grid-template-columns:1fr}
+.sidebar{position:fixed;left:-280px;top:0;height:100%;width:260px;z-index:1000;transition:left .25s ease}
+.sidebar.open{left:0}
+.preview{position:fixed;right:-100%;top:0;height:100%;width:100%;z-index:900;transition:right .25s ease}
+.preview.open{right:0}
+.editor{padding-top:60px}
+.mobileBar{position:fixed;top:0;left:0;right:0;height:50px;background:#171a21;border-bottom:1px solid #232833;display:flex;align-items:center;gap:10px;padding:0 10px;z-index:1100}
+.mobileBtn{background:#1e222b;border:none;color:white;padding:6px 10px;border-radius:6px;font-size:18px}
+}
+
+.sidebar{background:var(--panel);border-right:1px solid #232833;padding:16px;overflow:auto}
+.sidebar h3{font-size:12px;color:var(--muted);text-transform:uppercase;margin-top:0}
+
+.navItem{padding:8px;border-radius:8px;cursor:grab;margin-bottom:4px;background:#11131a;transition:transform .25s ease,background .2s,opacity .2s}
+.navItem:hover{background:#1b1f27}
+.navItem.dragging{opacity:.3;transform:scale(.95)}
+.navItem.dragPreview{outline:2px dashed var(--accent);transform:scale(1.05)}
+.navDelete{float:right;color:#ff6b6b;cursor:pointer}
+
+.search{width:100%;padding:8px;margin-bottom:10px;background:#11131a;border:1px solid #252b36;border-radius:8px;color:white}
+.editor{overflow:auto;padding:26px}
+
+.titleInput{font-size:24px;font-weight:600;background:none;border:none;color:white;width:100%;outline:none;margin-bottom:10px}
+.summaryInput{width:100%;background:var(--panel);border:1px solid #252b36;border-radius:10px;padding:10px;margin-bottom:20px;color:white}
+
+.scene{background:var(--panel);border:1px solid #252b36;border-radius:14px;padding:12px;margin-bottom:16px;transition:transform .22s ease, box-shadow .22s ease, opacity .2s}
+.scene.dragging{opacity:.25;transform:scale(.96)}
+.scene.dragPreview{outline:2px dashed var(--accent);transform:scale(1.02)}
+
+.dragGhost{position:absolute;pointer-events:none;z-index:9999;transform:rotate(2deg) scale(1.02);box-shadow:0 20px 40px rgba(0,0,0,.6);opacity:.95}
+
+.sceneHeader{display:flex;gap:6px;margin-bottom:6px;align-items:center}
+.dragHandle{cursor:grab;font-size:14px;padding:4px 6px;background:#11131a;border-radius:6px}
+.sceneTitle{flex:1;background:#11131a;border:1px solid #252b36;border-radius:8px;color:white;padding:6px}
+.sceneContent{width:100%;height:140px;background:#11131a;border:1px solid #252b36;border-radius:8px;color:white;padding:8px}
+.tagInput{margin-top:6px;width:100%;background:#11131a;border:1px solid #252b36;border-radius:8px;padding:6px;color:white}
+
+.linkRow{margin-top:6px;font-size:12px;color:var(--muted)}
+
+button{background:var(--panel2);border:none;color:white;padding:6px 10px;border-radius:8px;cursor:pointer}
+button:hover{background:#2a303c}
+
+.preview{background:var(--panel);border-left:1px solid #232833;padding:24px;overflow:auto}
+.panel{margin-top:20px}
+.card{background:#11131a;padding:8px;border-radius:8px;margin-bottom:8px;font-size:13px}
+
+.palette{position:fixed;top:20%;left:50%;transform:translateX(-50%);width:420px;background:var(--panel);border:1px solid #2a2f3b;border-radius:12px;padding:12px;box-shadow:0 30px 60px rgba(0,0,0,.6)}
+.palette input{width:100%;padding:10px;border-radius:8px;border:1px solid #252b36;background:#11131a;color:white;margin-bottom:10px}
+.commandItem{padding:8px;border-radius:6px;cursor:pointer}
+.commandItem:hover{background:var(--panel2)}
+.hidden{display:none}
+
+.modalOverlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center}
+.modal{background:var(--panel);padding:20px;border-radius:12px;width:320px;position:relative}
+.closeBtn{position:absolute;top:8px;right:10px;cursor:pointer;font-size:18px;color:#aaa}
+.modal input,.modal textarea,.modal select{width:100%;margin-bottom:8px;padding:8px;background:#11131a;border:1px solid #252b36;border-radius:8px;color:white}
+
+/* mobile bar hidden on desktop */
+.mobileBar{display:none}
+
+@media (max-width:900px){
+.mobileBar{display:flex}
+.editor{padding-top:60px}
+.header{margin-top:10px}
+}
+
+/* collapsible scenes */
+.scene.collapsed .cards{display:none}
+.sceneHeader{display:flex;align-items:center;gap:6px;cursor:pointer}
+.sceneToggle{font-size:12px;opacity:.8}
+
+</style>
+</head>
+<body>
+<div class="mobileBar">
+<button class="mobileBtn" onclick="toggleSidebar()">☰</button>
+<button class="mobileBtn" onclick="togglePreview()">👁</button>
+</div>
+<div class="layout">
+
+<div class="sidebar">
+<h3>Scenes</h3>
+<input id="search" class="search" placeholder="シーン検索">
+<div id="sceneNav"></div>
+<hr>
+<button onclick="addScene()">＋ シーン</button>
+<button onclick="exportScenario()">保存</button>
+
+<div class="panel">
+<h3>NPC</h3>
+<div id="npcList"></div>
+<button onclick="openNPCModal()">＋ NPC</button>
+</div>
+
+<div class="panel">
+<h3>Clues</h3>
+<div id="clueList"></div>
+<button onclick="openClueModal()">＋ 手がかり</button>
+</div>
+</div>
+
+<div class="editor">
+<input id="title" class="titleInput" placeholder="シナリオタイトル">
+<textarea id="summary" class="summaryInput" placeholder="概要"></textarea>
+<div id="scenes"></div>
+</div>
+
+<div class="preview" id="preview"></div>
+
+</div>
+
+<div id="commandPalette" class="palette hidden">
+<input id="commandInput" placeholder="コマンド">
+<div id="commandList"></div>
+</div>
+
+<div id="modalRoot"></div>
+
+<script>
+let data={title:"",summary:"",scenes:[],npcs:[],clues:[]}
+let dragSceneIndex=null
+let isDraggingScene=false
+let navDragIndex=null
+let ghost=null
+let lastSwapIndex=null
+
+const commands={
+scene:{run:addScene,desc:"シーン追加"},
+npc:{run:openNPCModal,desc:"NPC追加"},
+save:{run:exportScenario,desc:"保存"},
+template:{run:generateTemplate,desc:"テンプレート生成"}
+}
+
+function clearScenePreviews(){
+ document.querySelectorAll(".scene.dragPreview").forEach(x=>x.classList.remove("dragPreview"))
+}
+
+function clearNavPreviews(){
+ document.querySelectorAll(".navItem.dragPreview").forEach(x=>x.classList.remove("dragPreview"))
+}
+
+function createGhost(el,e){ghost=el.cloneNode(true);ghost.classList.add("dragGhost");ghost.style.width=el.offsetWidth+"px";document.body.appendChild(ghost);moveGhost(e)}
+function moveGhost(e){if(!ghost)return;ghost.style.left=e.pageX+10+"px";ghost.style.top=e.pageY+10+"px"}
+function removeGhost(){if(ghost){ghost.remove();ghost=null}}
+
+function save(){
+ localStorage.setItem("tsw", JSON.stringify(data))
+ renderPreview()
+}
+
+function load(){
+ const d = localStorage.getItem("tsw")
+ if(d) data = JSON.parse(d)
+ render()
+}
+
+initMobileDrag()
+load()
+
+function addScene(){data.scenes.push({title:"",content:"",tags:"",links:[]});render();save()}
+
+function generateTemplate(){
+data.scenes=[
+{title:"導入",content:"",tags:"",links:[]},
+{title:"探索",content:"",tags:"",links:[]},
+{title:"事件",content:"",tags:"",links:[]},
+{title:"クライマックス",content:"",tags:"",links:[]},
+{title:"エンディング",content:"",tags:"",links:[]}
+]
+render();save()
+}
+
+function removeScene(i){data.scenes.splice(i,1);render();save()}
+
+function render(){
+let c=document.getElementById("scenes");c.innerHTML=""
+
+data.scenes.forEach((s,i)=>{
+let div=document.createElement("div");div.className="scene";div.draggable=true
+
+ div.addEventListener("dragstart",e=>{dragSceneIndex=i;isDraggingScene=true;div.classList.add("dragging");createGhost(div,e)})
+ div.addEventListener("drag",moveGhost)
+ div.addEventListener("dragend",()=>{div.classList.remove("dragging");removeGhost();clearScenePreviews();dragSceneIndex=null;isDraggingScene=false;lastSwapIndex=null})
+
+ div.addEventListener("dragover",e=>{
+ e.preventDefault()
+ // プレビュー枠は使わない（触れたら即アニメーション）
+
+ if(!isDraggingScene || dragSceneIndex===null) return
+
+ const container=document.getElementById("scenes")
+ const items=[...container.children]
+ const draggedEl=items[dragSceneIndex]
+ const targetEl=div
+
+ if(!draggedEl || !targetEl || draggedEl===targetEl) return
+
+ const targetIndex=items.indexOf(targetEl)
+
+ // 中央より少し広い当たり判定（暴れ防止）
+ const rect=targetEl.getBoundingClientRect()
+ const upper=rect.top+rect.height*0.35
+ const lower=rect.top+rect.height*0.65
+
+ let newIndex=dragSceneIndex
+
+ if(e.clientY<upper){
+   newIndex=targetIndex
+ }
+ else if(e.clientY>lower){
+   newIndex=targetIndex+1
+ }
+ else{
+   return
+ }
+
+ if(newIndex===dragSceneIndex || newIndex===dragSceneIndex+1) return
+
+ if(lastSwapIndex===newIndex) return
+ lastSwapIndex=newIndex
+
+ const firstRects=items.map(el=>el.getBoundingClientRect())
+
+ if(newIndex>=items.length){
+   container.appendChild(draggedEl)
+ }else{
+   container.insertBefore(draggedEl,items[newIndex])
+ }
+
+ const newItems=[...container.children]
+ const lastRects=newItems.map(el=>el.getBoundingClientRect())
+
+ newItems.forEach((el,i)=>{
+   if(el===draggedEl) return
+
+   const first=firstRects[items.indexOf(el)]
+   const last=lastRects[i]
+   if(!first||!last) return
+
+   const dx=first.left-last.left
+   const dy=first.top-last.top
+
+   if(dx||dy){
+     el.style.transition="transform 0s"
+     el.style.transform=`translate(${dx}px,${dy}px)`
+
+     requestAnimationFrame(()=>{
+       el.style.transition="transform .22s ease"
+       el.style.transform=""
+     })
+   }
+ })
+
+ const moved=data.scenes.splice(dragSceneIndex,1)[0]
+ data.scenes.splice(newIndex>dragSceneIndex?newIndex-1:newIndex,0,moved)
+ dragSceneIndex=newIndex>dragSceneIndex?newIndex-1:newIndex
+})
+ div.addEventListener("dragleave",()=>div.classList.remove("dragPreview"))
+
+ div.addEventListener("drop",e=>{
+ let npc=e.dataTransfer.getData("npc")
+ let clue=e.dataTransfer.getData("clue")
+
+ if(npc){
+ data.scenes[i].content+=`\nNPC:${npc}「」`
+ render();save();return
+ }
+
+ if(clue){
+ data.scenes[i].content+=`\n[手がかり:${clue}]`
+ render();save();return
+ }
+
+ if(dragSceneIndex!==null){
+ lastSwapIndex=null
+ clearScenePreviews()
+ render();save()
+ }
+ })
+
+ div.innerHTML=`
+ <div class="sceneHeader">
+ <div class="dragHandle">☰</div>
+ <input class="sceneTitle" value="${s.title}" placeholder="シーン" oninput="updateSceneTitle(${i},this.value)">
+ <button onclick="removeScene(${i})">✖</button>
+ </div>
+ <textarea class="sceneContent" oninput="updateSceneContent(${i},this.value)">${s.content}</textarea>
+ <input class="tagInput" value="${s.tags||""}" placeholder="タグ" oninput="updateTags(${i},this.value)">
+ <div class="linkRow">分岐 → ${renderLinks(i)}</div>
+ <button onclick="openLinkModal(${i})">分岐追加</button>
+ `
+
+ c.appendChild(div)
+})
+
+updateSceneNav();renderNPCs();renderClues();renderPreview()
+}
+
+function renderLinks(i){
+let s=data.scenes[i]
+if(!s.links||!s.links.length)return"なし"
+return s.links.map(l=>data.scenes[l]?.title||"?").join(" , ")
+}
+
+function openLinkModal(i){
+let options=data.scenes.map((s,idx)=>`<option value="${idx}">${s.title||("Scene"+(idx+1))}</option>`).join("")
+modal(`<div class='closeBtn' onclick='closeModal()'>✕</div><h3>分岐先</h3><select id='linkTarget'>${options}</select><button onclick='createLink(${i})'>追加</button>`)
+}
+
+function createLink(i){
+let t=document.getElementById("linkTarget").value
+if(!data.scenes[i].links)data.scenes[i].links=[]
+data.scenes[i].links.push(Number(t))
+closeModal()
+render();save()
+}
+
+function updateSceneTitle(i,v){data.scenes[i].title=v;save();updateSceneNav()}
+function updateSceneContent(i,v){data.scenes[i].content=v;save()}
+function updateTags(i,v){data.scenes[i].tags=v;save()}
+
+function updateSceneNav(){
+let nav=document.getElementById("sceneNav");nav.innerHTML=""
+
+let firstRects=[]
+
+function animate(){
+ const items=[...nav.children]
+ const lastRects=items.map(el=>el.getBoundingClientRect())
+
+ items.forEach((el,i)=>{
+  const first=firstRects[i]
+  const last=lastRects[i]
+  if(!first||!last) return
+
+  const dx=first.left-last.left
+  const dy=first.top-last.top
+
+  if(dx||dy){
+   el.style.transition="transform 0s"
+   el.style.transform=`translate(${dx}px,${dy}px)`
+
+   requestAnimationFrame(()=>{
+    el.style.transition="transform .22s ease"
+    el.style.transform=""
+   })
+  }
+ })
+}
+
+data.scenes.forEach((s,i)=>{
+let item=document.createElement("div");item.className="navItem";item.draggable=true
+item.innerHTML=`${s.title||("Scene "+(i+1))}<span class='navDelete' onclick='deleteFromNav(${i})'>✕</span>`
+
+item.addEventListener("dragstart",e=>{
+ navDragIndex=i
+ item.classList.add("dragging")
+ createGhost(item,e)
+ firstRects=[...nav.children].map(el=>el.getBoundingClientRect())
+})
+
+item.addEventListener("drag",moveGhost)
+
+item.addEventListener("dragend",()=>{
+ item.classList.remove("dragging")
+ removeGhost()
+ clearNavPreviews()
+ navDragIndex=null
+})
+
+item.addEventListener("dragover",e=>{
+ e.preventDefault()
+ // プレビュー枠は使わない
+
+ if(navDragIndex===null) return
+
+ const container=nav
+ const items=[...container.children]
+ const dragged=items[navDragIndex]
+ const target=item
+
+ if(!dragged||dragged===target) return
+
+ const targetIndex=items.indexOf(target)
+
+ const rect=target.getBoundingClientRect()
+const upper=rect.top+rect.height*0.35
+const lower=rect.top+rect.height*0.65
+
+let newIndex=navDragIndex
+
+if(e.clientY<upper){
+ newIndex=targetIndex
+}
+else if(e.clientY>lower){
+ newIndex=targetIndex+1
+}
+else{
+ return
+}
+
+if(newIndex===navDragIndex||newIndex===navDragIndex+1) return
+
+ if(newIndex>=items.length){
+  container.appendChild(dragged)
+ }else{
+  container.insertBefore(dragged,items[newIndex])
+ }
+
+ animate()
+
+ const moved=data.scenes.splice(navDragIndex,1)[0]
+ data.scenes.splice(newIndex>navDragIndex?newIndex-1:newIndex,0,moved)
+ navDragIndex=newIndex>navDragIndex?newIndex-1:newIndex
+})
+
+item.addEventListener("dragleave",()=>item.classList.remove("dragPreview"))
+
+item.addEventListener("drop",()=>{
+ navDragIndex=null
+ clearNavPreviews()
+ render();save()
+})
+
+item.onclick=()=>document.querySelectorAll(".scene")[i].scrollIntoView({behavior:"smooth"})
+nav.appendChild(item)
+})
+}
+
+function deleteFromNav(i){data.scenes.splice(i,1);render();save()}
+
+function renderNPCs(){
+let list=document.getElementById("npcList");list.innerHTML=""
+data.npcs.forEach((n,i)=>{
+let d=document.createElement("div")
+d.className="card"
+d.draggable=true
+
+d.innerHTML=`<b>${n.name}</b><br>${n.desc}`
+
+d.addEventListener("dragstart",e=>{
+e.dataTransfer.setData("npc",n.name)
+})
+
+list.appendChild(d)
+})
+}
+
+function renderClues(){
+let list=document.getElementById("clueList");list.innerHTML=""
+data.clues.forEach((c,i)=>{
+let d=document.createElement("div")
+d.className="card"
+d.draggable=true
+
+d.innerHTML=`<b>${c.title}</b><br>${c.desc}`
+
+d.addEventListener("dragstart",e=>{
+e.dataTransfer.setData("clue",c.title)
+})
+
+list.appendChild(d)
+})
+}
+
+function openNPCModal(){modal(`<div class='closeBtn' onclick='closeModal()'>✕</div><h3>NPC追加</h3><input id='npcName' placeholder='名前'><textarea id='npcDesc' placeholder='説明'></textarea><button onclick='createNPC()'>追加</button>`)}
+
+function createNPC(){
+let name=document.getElementById("npcName").value
+if(!name)return
+let desc=document.getElementById("npcDesc").value
+
+data.npcs.push({name,desc})
+
+closeModal()
+renderNPCs()
+save()
+}
+
+function openClueModal(){modal(`<div class='closeBtn' onclick='closeModal()'>✕</div><h3>手がかり追加</h3><input id='clueTitle' placeholder='名前'><textarea id='clueDesc' placeholder='詳細'></textarea><button onclick='createClue()'>追加</button>`)}
+
+function createClue(){
+let title=document.getElementById("clueTitle").value
+if(!title)return
+let desc=document.getElementById("clueDesc").value
+
+data.clues.push({title,desc})
+
+closeModal()
+renderClues()
+save()
+}
+
+function modal(content){document.getElementById("modalRoot").innerHTML=`<div class='modalOverlay'><div class='modal'>${content}</div></div>`}
+function closeModal(){document.getElementById("modalRoot").innerHTML=""}
+
+function exportScenario(){
+let blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"})
+let a=document.createElement("a")
+a.href=URL.createObjectURL(blob)
+a.download="scenario.tsw"
+a.click()
+}
+
+// command palette
+
+document.addEventListener("keydown",e=>{
+if(e.ctrlKey&&e.key==="k"){
+e.preventDefault()
+let p=document.getElementById("commandPalette")
+p.classList.toggle("hidden")
+document.getElementById("commandInput").focus()
+updateCommandList("")
+}
+})
+
+const cmdInput=document.getElementById("commandInput")
+
+cmdInput.addEventListener("input",()=>updateCommandList(cmdInput.value))
+
+cmdInput.addEventListener("keydown",e=>{
+if(e.key==="Enter"){
+let cmd=cmdInput.value.trim().toLowerCase()
+if(commands[cmd])commands[cmd].run()
+cmdInput.value=""
+updateCommandList("")
+}
+})
+
+function updateCommandList(text){
+let list=document.getElementById("commandList")
+list.innerHTML=""
+Object.keys(commands).filter(c=>c.includes(text)).forEach(c=>{
+let div=document.createElement("div")
+div.className="commandItem"
+div.textContent=c+" — "+commands[c].desc
+div.onclick=()=>commands[c].run()
+list.appendChild(div)
+})
+}
+
+function renderPreview(){
+let p=document.getElementById("preview")
+let html=`<h1>${data.title}</h1><p>${data.summary}</p>`
+
+data.scenes.forEach(s=>{
+html+=`<h2>${s.title}</h2><p>${s.content.replace(/\\n/g,"<br>")}</p>`
+if(s.links?.length){
+html+="<p>→ "+s.links.map(l=>data.scenes[l]?.title).join(", ")+"</p>"
+}
+})
+
+p.innerHTML=html
+}
+
+load()
+
+// --- Mobile touch drag support (improved) ---
+function initMobileDrag(){
+ let active=null
+ let ghostEl=null
+ let longPressTimer=null
+
+ function startDrag(target,t){
+  active=target
+  const rect=active.getBoundingClientRect()
+
+  ghostEl=active.cloneNode(true)
+  ghostEl.classList.add("dragGhost")
+  ghostEl.style.width=rect.width+"px"
+  ghostEl.style.left=t.pageX+"px"
+  ghostEl.style.top=t.pageY+"px"
+  document.body.appendChild(ghostEl)
+
+  active.style.opacity="0.35"
+ }
+
+ document.addEventListener("touchstart",e=>{
+  const scene=e.target.closest(".scene")
+  const nav=e.target.closest(".navItem")
+  if(!scene && !nav) return
+
+  const target=scene||nav
+  const t=e.touches[0]
+
+  longPressTimer=setTimeout(()=>{
+   startDrag(target,t)
+   if(navigator.vibrate) navigator.vibrate(8)
+  },180)
+ })
+
+ document.addEventListener("touchmove",e=>{
+  if(!active||!ghostEl) return
+
+  const t=e.touches[0]
+
+  ghostEl.style.left=t.pageX+12+"px"
+  ghostEl.style.top=t.pageY+12+"px"
+
+  const el=document.elementFromPoint(t.clientX,t.clientY)
+
+  const scene=el?.closest(".scene")
+  const nav=el?.closest(".navItem")
+
+  if(scene){
+   scene.dispatchEvent(new DragEvent("dragover",{bubbles:true,clientY:t.clientY}))
+  }
+
+  if(nav){
+   nav.dispatchEvent(new DragEvent("dragover",{bubbles:true,clientY:t.clientY}))
+  }
+
+  // auto scroll
+  const edge=80
+  if(t.clientY < edge) window.scrollBy(0,-8)
+  if(t.clientY > window.innerHeight-edge) window.scrollBy(0,8)
+ })
+
+ document.addEventListener("touchend",()=>{
+  clearTimeout(longPressTimer)
+
+  if(ghostEl) ghostEl.remove()
+
+  if(active) active.style.opacity=""
+
+  ghostEl=null
+  active=null
+ })
+}
+
+function toggleSidebar(){
+ const s=document.querySelector('.sidebar')
+ s.classList.toggle('open')
+}
+
+function togglePreview(){
+ const p=document.querySelector('.preview')
+ p.classList.toggle('open')
+}
+
+
+// scene collapse toggle
+function toggleSceneCollapse(id){
+ const el=document.querySelector(`[data-scene-id="${id}"]`)
+ if(!el) return
+ el.classList.toggle('collapsed')
+}
+
+// inject toggle buttons after render
+const _origRender = typeof render==='function'?render:null
+if(_origRender){
+ render=function(){
+  _origRender()
+  document.querySelectorAll('.scene').forEach(sc=>{
+   if(sc.querySelector('.sceneToggle')) return
+   const head=sc.querySelector('.sceneTitle')||sc.firstChild
+   if(!head) return
+   const id=sc.dataset.sceneId
+   const t=document.createElement('span')
+   t.textContent='▾'
+   t.className='sceneToggle'
+   t.onclick=(e)=>{e.stopPropagation();toggleSceneCollapse(id)}
+   head.prepend(t)
+  })
+ }
+}
+
+// simple flowchart view
+function openFlow(){
+ const w=window.open('','flow','width=900,height=700')
+ let html=`<html><head><title>Flow</title><style>
+ body{font-family:sans-serif;background:#111;color:#eee;padding:20px}
+ .node{padding:10px 14px;border:1px solid #444;border-radius:8px;margin:8px;display:inline-block;background:#1e1e1e}
+ .col{margin-bottom:20px}
+ </style></head><body>`
+
+ data.scenes.forEach((s,i)=>{
+  html+=`<div class="node">${i+1}. ${s.title||'Scene'}</div>`
+ })
+
+ html+='</body></html>'
+ w.document.write(html)
+}
+
+</script>
+</body>
+</html>
