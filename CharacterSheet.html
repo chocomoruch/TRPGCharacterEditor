@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Character Sheet Builder</title>
+    <style>
+        :root {
+            --primary-bg: #1e1e2e;
+            --card-bg: #2b2b3b;
+            --accent: #89b4fa;
+            --text: #cdd6f4;
+            --input-bg: #313244;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--primary-bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* ヘッダー */
+        header {
+            padding: 1rem;
+            background: var(--card-bg);
+            border-bottom: 2px solid var(--accent);
+            text-align: center;
+            font-weight: bold;
+        }
+
+        /* メインコンテンツ */
+        .container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 1rem;
+            padding: 1rem;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* サイドバー（固定ステータス） */
+        .sidebar {
+            background: var(--card-bg);
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-y: auto;
+        }
+
+        .status-box {
+            background: var(--input-bg);
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .status-val {
+            font-size: 1.5rem;
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        /* メインフォーム */
+        .main-form {
+            background: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 8px;
+            overflow-y: auto;
+        }
+
+        .section-title {
+            border-left: 4px solid var(--accent);
+            padding-left: 10px;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid var(--input-bg);
+            background: var(--input-bg);
+            color: white;
+            box-sizing: border-box;
+        }
+
+        /* スマホ対応 */
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                display: none; /* スマホではサイドバーを隠すか、上部に配置 */
+            }
+        }
+
+        .status-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr); /* 3列で綺麗に並べる */
+        gap: 15px;
+    }
+    .stat-item {
+        background: var(--input-bg);
+        padding: 10px;
+        border-radius: 6px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    .stat-item label {
+        font-weight: bold;
+        margin-bottom: 5px;
+        color: var(--accent);
+    }
+    .stat-item .dice-type {
+        font-size: 0.7rem;
+        margin-top: 5px;
+        color: #949cbb;
+    }
+    .stat-item input {
+        text-align: center;
+        font-size: 1.1rem;
+    }
+    /* --- CSS追加・修正案 --- */
+
+/* 入力欄の基本スタイルを少し調整 */
+input, select, textarea {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    outline: none;
+    transition: border-color 0.2s;
+}
+input:focus {
+    border-color: var(--accent) !important;
+}
+
+/* インジケーターボックス */
+.status-indicator-box {
+    margin-bottom: 20px;
+    background: var(--input-bg);
+    padding: 15px;
+    border-radius: 8px;
+}
+
+/* ラベルと数値の行 */
+.status-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+.status-label {
+    color: #949cbb;
+}
+
+.status-values {
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* 現在値の入力欄（インジケーター内） */
+.current-input {
+    width: 45px !important;
+    padding: 2px 4px !important;
+    font-size: 1.1rem !important;
+    text-align: center;
+    border: none !important;
+    background: transparent !important;
+    color: var(--accent) !important;
+    font-weight: bold;
+}
+/* Chromeなどでのnumber入力の矢印を消す */
+.current-input::-webkit-inner-spin-button,
+.current-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.max-val {
+    font-size: 0.9rem;
+    color: #949cbb;
+}
+
+/* バーのコンテナ */
+.bar-container {
+    width: 100%;
+    height: 10px;
+    background-color: #11111b; /* ダークな背景 */
+    border-radius: 5px;
+    overflow: hidden;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
+}
+
+/* バーの中身（共通） */
+.bar-fill {
+    height: 100%;
+    border-radius: 5px;
+    transition: width 0.3s ease-out, background-color 0.3s ease; /* アニメーション */
+    width: 0%; /* JSで制御 */
+}
+
+/* バーの色（CoCのイメージ） */
+.hp-color { background-color: #e64553; } /* 赤 */
+.mp-color { background-color: #40a02b; } /* 緑 */
+.san-color { background-color: #1e66f5; } /* 青 */
+
+/* 瀕死や狂気の時の警告色（JSでクラスを付与する） */
+.bar-fill.danger {
+    background-color: #fe640b !important; /* オレンジ */
+    animation: pulse 1s infinite;
+}
+
+/* 能力値の入力欄（main-form）のデザインも統一 */
+.stat-item input {
+    width: 100%;
+    border: none;
+    border-bottom: 2px solid #11111b;
+    border-radius: 0;
+    transition: border-color 0.3s;
+}
+
+/* ボタンのデザインを強化 */
+.primary-button {
+    width: 100%;
+    padding: 12px;
+    background: var(--card-bg);
+    color: var(--accent);
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.primary-button:hover {
+    background: var(--accent);
+    color: var(--primary-bg);
+    box-shadow: 0 0 15px rgba(137, 180, 250, 0.5);
+}
+
+/* SAN値などが低いときの脈動アニメーション */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.6; }
+    100% { opacity: 1; }
+}
+/* 能力値用の小さなゲージ */
+.stat-bar-container {
+    width: 80%;
+    height: 4px;
+    background: #11111b;
+    border-radius: 2px;
+    margin: 5px 0;
+    overflow: hidden;
+}
+
+.stat-bar-fill {
+    height: 100%;
+    width: 0%; /* JSで制御 */
+    background: var(--accent); /* 基本はアクセントカラー */
+    transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.3s;
+}
+
+/* 高い能力値（15以上など）の時に色を変える演出 */
+.stat-bar-fill.heroic {
+    background: #fab387; /* オレンジがかった色で「すごい感」を出す */
+    box-shadow: 0 0 5px rgba(250, 179, 135, 0.5);
+}
+/* 技能エリアのスタイル */
+.skill-container {
+    background: var(--input-bg);
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.skill-header, .skill-item {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr; /* 5列構成 */
+    gap: 5px;
+    align-items: center;
+    padding: 5px;
+    border-bottom: 1px solid var(--card-bg);
+}
+
+.skill-header {
+    font-size: 0.8rem;
+    color: var(--accent);
+    font-weight: bold;
+    text-align: center;
+}
+
+.skill-item input {
+    padding: 4px !important;
+    text-align: center;
+    font-size: 0.9rem !important;
+}
+
+.skill-name {
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+.skill-total {
+    color: var(--accent);
+    font-weight: bold;
+    background: rgba(137, 180, 250, 0.1);
+    border-radius: 4px;
+    text-align: center;
+}
+.section-title {
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.2s;
+    padding: 10px; /* クリック領域を広く */
+    border-radius: 4px;
+}
+
+.section-title:hover {
+    background: rgba(137, 180, 250, 0.1);
+}
+
+.section-title::after {
+    content: '▼';
+    font-size: 0.8rem;
+    transition: transform 0.3s;
+    margin-right: 10px;
+    color: var(--accent); /* 矢印の色をアクセントカラーに */
+}
+
+.section-title.collapsed::after {
+    transform: rotate(-90deg); /* 閉じている時は横向き */
+}
+
+/* 折りたたみ対象のコンテンツ（アニメーション付き） */
+.collapsible-content {
+    /* transition: max-height 0.3s ease-out, opacity 0.3s; 
+       ★技能リストが長いとmax-heightのアニメーションは難しいので、
+       今回はシンプルに表示/非表示を切り替える設定にします。 */
+    display: block;
+    opacity: 1;
+}
+
+.collapsible-content.hidden {
+    display: none; /* 完全に非表示 */
+}
+
+    </style>
+</head>
+<body>
+
+<header>TRPGキャラシエディター</header>
+
+<div class="container">
+    <aside class="sidebar">
+        <div class="section-title">Current Status</div>
+        
+        <div class="status-indicator-box">
+            <div class="status-label-row">
+                <span class="status-label">HP (耐久力)</span>
+                <span class="status-values">
+                    <input type="number" id="hp-current" class="current-input" value="-">
+                    / <span id="hp-max" class="max-val">-</span>
+                </span>
+            </div>
+            <div class="bar-container">
+                <div id="hp-bar" class="bar-fill hp-color" style="width: 100%;"></div>
+            </div>
+        </div>
+
+        <div class="status-indicator-box">
+            <div class="status-label-row">
+                <span class="status-label">MP (マジックポイント)</span>
+                <span class="status-values">
+                    <input type="number" id="mp-current" class="current-input" value="-">
+                    / <span id="mp-max" class="max-val">-</span>
+                </span>
+            </div>
+            <div class="bar-container">
+                <div id="mp-bar" class="bar-fill mp-color" style="width: 100%;"></div>
+            </div>
+        </div>
+
+        <div class="status-indicator-box">
+            <div class="status-label-row">
+                <span class="status-label">SAN (正気度)</span>
+                <span class="status-values">
+                    <input type="number" id="san-current" class="current-input" value="-">
+                    / <span id="san-max" class="max-val">-</span>
+                </span>
+            </div>
+            <div class="bar-container">
+                <div id="san-bar" class="bar-fill san-color" style="width: 100%;"></div>
+            </div>
+        </div>
+
+        <button id="roll-all" class="primary-button" style="margin-top: 20px;">🎲 能力値を一括生成</button>
+        
+        <div class="status-indicator-box" style="margin-top: 10px; display: flex; gap: 5px;">
+            <button id="export-btn" class="primary-button" style="padding: 8px; font-size: 0.8rem;">エクスポート</button>
+            <button id="import-btn-fake" class="primary-button" style="padding: 8px; font-size: 0.8rem; border-color: #a6adc8; color: #a6adc8;">インポート</button>
+            <input type="file" id="import-btn" style="display: none;" accept=".coc6">
+        </div>
+
+        <div class="status-indicator-box" style="border: 1px dashed var(--accent);">
+            <div class="status-label-row">
+                <span class="status-label">職業技能ポイント残</span>
+                <span id="job-pts-left" class="status-val" style="font-size: 1.1rem;">0</span>
+            </div>
+            <div class="status-label-row" style="margin-top: 10px;">
+                <span class="status-label">興味技能ポイント残</span>
+                <span id="interest-pts-left" class="status-val" style="font-size: 1.1rem;">0</span>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-form">
+        <section>
+        <div class="section-title" onclick="toggleSection(this)">基本プロフィール</div>
+            <div class="collapsible-content">
+            <div class="input-group">
+                <input type="text" placeholder="キャラクター名">
+                <input type="text" placeholder="職業">
+            </div>
+            <div class="input-group">
+                <input type="number" placeholder="年齢">
+                <select>
+                    <option>男性</option>
+                    <option>女性</option>
+                    <option>その他</option>
+                </select>
+            </div>
+        </section>
+
+        <section style="margin-top: 2rem;">
+        <div class="section-title" onclick="toggleSection(this)">能力値 (Status)</div>
+            <div class="collapsible-content">
+            
+            <div class="status-grid">
+                <div class="stat-item">
+                    <label>STR</label>
+                    <input type="number" id="str" value="-" min="3" max="18">
+                    <div class="stat-bar-container"><div id="str-bar" class="stat-bar-fill"></div></div>
+                    <span class="dice-type">3d6</span>
+                </div>
+                <div class="stat-item">
+                    <label>CON</label>
+                    <input type="number" id="con" value="-" min="3" max="18">
+                    <div class="stat-bar-container"><div id="con-bar" class="stat-bar-fill"></div></div>
+                    <span class="dice-type">3d6</span>
+                </div>
+                <div class="stat-item">
+                    <label>POW</label>
+                    <input type="number" id="pow" value="-" min="3" max="18">
+                    <div class="stat-bar-container"><div id="pow-bar" class="stat-bar-fill"></div></div>
+                    <span class="dice-type">3d6</span>
+                </div>
+                <div class="stat-item">
+                    <label>DEX</label>
+                    <input type="number" id="dex" value="-" min="3" max="18">
+                    <div class="stat-bar-container"><div id="dex-bar" class="stat-bar-fill"></div></div>
+                    <span class="dice-type">3d6</span>
+                </div>
+                <div class="stat-item">
+                    <label>APP</label>
+                    <input type="number" id="app" value="-" min="3" max="18">
+                    <div class="stat-bar-container"><div id="app-bar" class="stat-bar-fill"></div></div>
+                    <span class="dice-type">3d6</span>
+                </div>
+                <div class="stat-item">
+                    <label>SIZ</label>
+                    <input type="number" id="siz" value="-" min="8" max="18">
+                    <div class="stat-bar-container"><div id="siz-bar" class="stat-bar-fill"></div></div>
+                    <span class="dice-type">2d6+6</span>
+                </div>
+                <div class="stat-item">
+                    <label>INT</label>
+                    <input type="number" id="int" value="-" min="8" max="18">
+                    <div class="stat-bar-container"><div id="int-bar" class="stat-bar-fill"></div></div>
+                    <span class="dice-type">2d6+6</span>
+                </div>
+                <div class="stat-item">
+                    <label>EDU</label>
+                    <input type="number" id="edu" value="-" min="6" max="21">
+                    <div class="stat-bar-container"><div id="edu-bar" class="stat-bar-fill"></div></div>
+                    <span class="dice-type">3d6+3</span>
+                </div>
+                <div class="stat-item">
+                    <label>LUK</label>
+                    <input type="number" id="luk" value="50" readonly style="opacity: 0.7;">
+                    <div class="stat-bar-container"><div id="luk-bar" class="stat-bar-fill"></div></div>
+                    <span class="dice-type">POW×5</span>
+                </div>
+                <div class="stat-item">
+                    <label>アイデア</label>
+                    <input type="number" id="idea" value="-" readonly style="opacity: 0.7;">
+                    <div class="stat-bar-container"><div id="idea-bar" class="stat-bar-fill"></div></div>
+                    <span class="dice-type">INT×5</span>
+                </div>
+                <div class="stat-item">
+                    <label>知識</label>
+                    <input type="number" id="knowledge" value="-" readonly style="opacity: 0.7;">
+                    <div class="stat-bar-container"><div id="knowledge-bar" class="stat-bar-fill"></div></div>
+                    <span class="dice-type">EDU×5</span>
+                </div>
+                <div class="stat-item">
+                    <label>DB</label>
+                    <input type="text" id="db-stat-val" value="なし" readonly style="opacity: 0.7;">
+                    <div style="height: 4px; margin: 5px 0;"></div> <span class="dice-type">STR+SIZ</span>
+                </div>
+                <div class="stat-item">
+                <label>HP最大値</label>
+                    <input type="number" id="hp-max-stat" value="-" readonly style="opacity: 0.7;">
+                    <div class="stat-bar-container"><div id="hp-max-stat-bar" class="stat-bar-fill"></div></div>
+                    <span class="dice-type">(CON+SIZ) ÷ 2</span>
+                </div>
+                <div class="stat-item">
+                    <label>MP最大値</label>
+                    <input type="number" id="mp-max-stat" value="-" readonly style="opacity: 0.7;">
+                    <div class="stat-bar-container"><div id="mp-max-stat-bar" class="stat-bar-fill"></div></div>
+                    <span class="dice-type">POW</span>
+                </div>
+                <div class="stat-item">
+                    <label>SAN最大値</label>
+                    <input type="number" id="san-max-stat" value="-" readonly style="opacity: 0.7;">
+                    <div class="stat-bar-container"><div id="san-max-stat-bar" class="stat-bar-fill"></div></div>
+                    <span class="dice-type">POW×5</span>
+                </div>
+        </div>
+        </section>
+<section style="margin-top: 2rem;">
+    <div class="section-title" onclick="toggleSection(this)">技能 (Skills)</div>
+    
+    <div id="skill-content" class="collapsible-content">
+        <div class="skill-header">
+            <span>技能名</span>
+            <span>初期値</span>
+            <span>職業P</span>
+            <span>興味P</span>
+            <span>合計</span>
+        </div>
+        <div id="skill-list" class="skill-container">
+            </div>
+    </div>
+</section>
+<section style="margin-top: 2rem;">
+        <div class="section-title" onclick="toggleSection(this)">武器・戦闘 (Combat)</div>
+            <div class="collapsible-content">
+    <div class="status-indicator-box">
+        <div class="status-label-row">
+            <span class="status-label">ダメージボーナス (DB)</span>
+            <span id="db-val" class="status-val" style="font-size: 1.1rem;">なし</span>
+        </div>
+    </div>
+    
+<div class="skill-header" style="grid-template-columns: 2fr 1fr 1fr 1fr 1fr 0.5fr;">
+    <span>武器名</span>
+    <span>成功率</span>
+    <span>ダメージ</span>
+    <span>回数</span>
+    <span>装弾数</span>
+    <span>操作</span>
+</div>
+    <div id="weapon-list" class="skill-container">
+        <div class="skill-item weapon-item">
+        </div>
+    </div>
+    <button id="add-weapon" class="primary-button" style="margin-top: 10px; font-size: 0.8rem; border-style: dashed;">+ 武器を追加</button>
+</section>
+
+<section style="margin-top: 2rem;">
+        <div class="section-title" onclick="toggleSection(this)">所持品 (Inventory)</div>
+            <div class="collapsible-content">
+    <div class="skill-header" style="grid-template-columns: 2fr 1fr 0.5fr;">
+        <span>アイテム名</span>
+        <span>個数/備考</span>
+        <span>操作</span>
+    </div>
+    <div id="inventory-list" class="skill-container">
+        </div>
+    <button id="add-item" class="primary-button" style="margin-top: 10px; font-size: 0.8rem; border-style: dashed;">+ アイテムを追加</button>
+</section>
+    </main>
+</div>
+
+<script>
+
+    // セクションの開閉を切り替える関数
+const toggleSection = (element) => {
+    // タイトルの次の要素（collapsible-content）を取得
+    const content = element.nextElementSibling;
+    
+    // タイトルに 'collapsed' クラスを付け外し（矢印の向きが変わる）
+    element.classList.toggle('collapsed');
+    
+    // コンテンツに 'hidden' クラスを付け外し（表示/非表示が変わる）
+    content.classList.toggle('hidden');
+};
+
+// --- 1. 基本設定 & ユーティリティ ---
+const rollDice = (n, m) => {
+    let total = 0;
+    for (let i = 0; i < n; i++) total += Math.floor(Math.random() * m) + 1;
+    return total;
+};
+
+const defaultSkills = [
+    { name: "回避", base: "dex*2" }, { name: "キック", base: 25 }, { name: "組み付き", base: 25 },
+    { name: "こぶし", base: 50 }, { name: "応急手当", base: 30 }, { name: "鍵開け", base: 1 },
+    { name: "隠れる", base: 10 }, { name: "聞き耳", base: 25 }, { name: "忍び歩き", base: 10 },
+    { name: "写真術", base: 10 }, { name: "図書館", base: 25 }, { name: "目星", base: 25 },
+    { name: "運転", base: 20 }, { name: "説得", base: 15 }, { name: "値切り", base: 5 },
+    { name: "心理学", base: 5 }, { name: "精神分析", base: 1 }
+];
+
+// ダメージボーナス (DB) 計算ロジック
+const getDamageBonus = (str, siz) => {
+    const sum = str + siz;
+    if (sum <= 12) return "-1d6";
+    if (sum <= 16) return "-1d4";
+    if (sum <= 24) return "0";
+    if (sum <= 32) return "+1d4";
+    if (sum <= 40) return "+1d6";
+    return "+2d6";
+};
+
+// --- 2. 更新・計算系関数 ---
+
+const updateBar = (type) => {
+    const currentInput = document.getElementById(`${type}-current`);
+    const maxSpan = document.getElementById(`${type}-max`);
+    const barFill = document.getElementById(`${type}-bar`);
+    if(!currentInput || !maxSpan || !barFill) return;
+
+    const current = parseInt(currentInput.value) || 0;
+    const max = parseInt(maxSpan.textContent) || 1;
+    let percentage = (current / max) * 100;
+    barFill.style.width = `${Math.min(100, Math.max(0, percentage))}%`;
+
+    if (percentage <= 20) barFill.classList.add('danger');
+    else barFill.classList.remove('danger');
+};
+
+const updateStatGauges = () => {
+    const statIds = [
+        'str', 'con', 'pow', 'dex', 'app', 'siz', 'int', 'edu', 'luk', 
+        'idea', 'knowledge', 'hp-max-stat', 'mp-max-stat', 'san-max-stat'
+    ];
+    
+    statIds.forEach(id => {
+        const input = document.getElementById(id);
+        // IDが hp-max-stat ならバーのIDは hp-max-stat-bar になる
+        const bar = document.getElementById(`${id}-bar`);
+        if(!input || !bar) return;
+
+        const val = parseInt(input.value) || 0;
+        
+        // 各ステータスが「何ポイントで100%（満タン）か」を設定
+        let max = 18;
+        if (id === 'edu') max = 21;
+        // %系の能力値
+        if (['luk', 'idea', 'knowledge', 'san-max-stat'].includes(id)) max = 99;
+        // HP/MPは20〜25くらいを最大値の目安にする
+        if (['hp-max-stat', 'mp-current'].includes(id)) max = 20;
+        if (id === 'hp-max-stat') max = 20;
+        if (id === 'mp-max-stat') max = 20;
+
+        let percentage = (val / max) * 100;
+        bar.style.width = `${Math.min(100, Math.max(0, percentage))}%`;
+
+        // 80%以上で色を変える演出
+        if (percentage >= 80) bar.classList.add('heroic');
+        else bar.classList.remove('heroic');
+    });
+};
+
+const updateAllSkillPoints = () => {
+    const edu = parseInt(document.getElementById('edu').value) || 0;
+    const int = parseInt(document.getElementById('int').value) || 0;
+    const maxJobPts = edu * 20;
+    const maxInterestPts = int * 10;
+
+    let usedJobPts = 0;
+    let usedInterestPts = 0;
+
+    defaultSkills.forEach((_, index) => {
+        const j = document.getElementById(`skill-job-${index}`);
+        const i = document.getElementById(`skill-interest-${index}`);
+        if(j) usedJobPts += parseInt(j.value) || 0;
+        if(i) usedInterestPts += parseInt(i.value) || 0;
+    });
+
+    const jobDisp = document.getElementById('job-pts-left');
+    const intDisp = document.getElementById('interest-pts-left');
+    if(jobDisp && intDisp) {
+        const jobLeft = maxJobPts - usedJobPts;
+        const intLeft = maxInterestPts - usedInterestPts;
+        jobDisp.textContent = jobLeft;
+        intDisp.textContent = intLeft;
+        jobDisp.style.color = jobLeft < 0 ? "#e64553" : "var(--accent)";
+        intDisp.style.color = intLeft < 0 ? "#e64553" : "var(--accent)";
+    }
+};
+
+const updateSkillTotal = (index) => {
+    const baseEl = document.getElementById(`skill-base-${index}`);
+    const jobEl = document.getElementById(`skill-job-${index}`);
+    const intEl = document.getElementById(`skill-interest-${index}`);
+    const totalEl = document.getElementById(`skill-total-${index}`);
+
+    if(baseEl && jobEl && intEl && totalEl) {
+        const total = (parseInt(baseEl.value) || 0) + (parseInt(jobEl.value) || 0) + (parseInt(intEl.value) || 0);
+        totalEl.textContent = total;
+        updateAllSkillPoints();
+    }
+};
+
+const updateDerivedStats = () => {
+    const getVal = (id) => {
+        const el = document.getElementById(id);
+        if (!el) return 0;
+        const v = el.value;
+        return (v === "-" || v === "") ? 0 : parseInt(v);
+    };
+
+    const str = getVal('str');
+    const con = getVal('con');
+    const pow = getVal('pow');
+    const dex = getVal('dex');
+    const siz = getVal('siz');
+    const int = getVal('int');
+    const edu = getVal('edu');
+
+    // 基本ステータスの最大値
+    const hpMax = Math.ceil((con + siz) / 2);
+    const mpMax = pow;
+    const sanMax = pow * 5;
+
+    // 追加ステータスの計算
+    const idea = int * 5;
+    const knowledge = edu * 5;
+    const luck = pow * 5;
+    const db = getDamageBonus(str, siz);
+
+    // 各表示場所への反映
+    if(document.getElementById('hp-max-stat')) document.getElementById('hp-max-stat').value = hpMax;
+    if(document.getElementById('mp-max-stat')) document.getElementById('mp-max-stat').value = mpMax;
+    if(document.getElementById('san-max-stat')) document.getElementById('san-max-stat').value = sanMax;
+    
+    document.getElementById('hp-max').textContent = hpMax || "-";
+    document.getElementById('mp-max').textContent = mpMax || "-";
+    document.getElementById('san-max').textContent = sanMax || "-";
+    
+    document.getElementById('luk').value = luck;
+    document.getElementById('idea').value = idea;
+    document.getElementById('knowledge').value = knowledge;
+    
+    // 能力値欄のDB
+    if(document.getElementById('db-stat-val')) {
+        document.getElementById('db-stat-val').value = db;
+    }
+    // 戦闘欄のDB（もし残していれば）
+    if(document.getElementById('db-val')) {
+        document.getElementById('db-val').textContent = db;
+    }
+
+    updateBar('hp'); 
+    updateBar('mp'); 
+    updateBar('san');
+    updateStatGauges(); // ゲージの更新
+    updateAllSkillPoints();
+};
+
+const initSkills = () => {
+    const container = document.getElementById('skill-list');
+    if(!container) return;
+    container.innerHTML = '';
+    const dex = parseInt(document.getElementById('dex').value) || 0;
+
+    defaultSkills.forEach((skill, index) => {
+        const div = document.createElement('div');
+        div.className = 'skill-item';
+        let baseVal = (skill.base === "dex*2") ? dex * 2 : skill.base;
+
+        div.innerHTML = `
+            <span class="skill-name">${skill.name}</span>
+            <input type="number" id="skill-base-${index}" value="${baseVal}" readonly tabindex="-1">
+            <input type="number" id="skill-job-${index}" class="skill-input" value="0" min="0">
+            <input type="number" id="skill-interest-${index}" class="skill-input" value="0" min="0">
+            <div id="skill-total-${index}" class="skill-total">${baseVal}</div>
+        `;
+        container.appendChild(div);
+
+        div.querySelectorAll('.skill-input').forEach(input => {
+            input.addEventListener('input', () => {
+                updateSkillTotal(index);
+                autoSave();
+            });
+        });
+    });
+    updateAllSkillPoints();
+};
+
+// --- 3. セーブ・ロード・インポート・エクスポート ---
+
+const getAllCharacterData = () => {
+    const data = {
+        profile: {
+            name: document.querySelector('input[placeholder="キャラクター名"]')?.value || "",
+            job: document.querySelector('input[placeholder="職業"]')?.value || "",
+            age: document.querySelector('input[placeholder="年齢"]')?.value || "",
+            gender: document.querySelector('select')?.value || "-"
+        },
+        stats: {},
+        currentStatus: {
+            hp: document.getElementById('hp-current')?.value || 0,
+            mp: document.getElementById('mp-current')?.value || 0,
+            san: document.getElementById('san-current')?.value || 0
+        },
+        skills: [],
+        weapons: [],
+        inventory: [] // 配列として保存
+    };
+
+    ['str', 'con', 'pow', 'dex', 'app', 'siz', 'int', 'edu'].forEach(id => {
+        data.stats[id] = document.getElementById(id)?.value || 0;
+    });
+
+    defaultSkills.forEach((_, index) => {
+        data.skills.push({
+            job: document.getElementById(`skill-job-${index}`)?.value || 0,
+            interest: document.getElementById(`skill-interest-${index}`)?.value || 0
+        });
+    });
+
+    document.querySelectorAll('.weapon-item').forEach(item => {
+        const name = item.querySelector('.w-name')?.value;
+        if(name) { // 武器名がある場合のみ保存
+            data.weapons.push({
+                name: name,
+                rate: item.querySelector('.w-rate').value,
+                dmg: item.querySelector('.w-dmg').value,
+                cnt: item.querySelector('.w-cnt').value,
+                ammo: item.querySelector('.w-ammo').value
+            });
+        }
+    });
+
+    // 所持品リストの取得
+    document.querySelectorAll('.inventory-item').forEach(item => {
+        const name = item.querySelector('.i-name')?.value;
+        if(name) {
+            data.inventory.push({
+                name: name,
+                note: item.querySelector('.i-note').value
+            });
+        }
+    });
+
+    return data;
+};
+
+const applyCharacterData = (data) => {
+    if (!data) return;
+    try {
+        if (data.profile) {
+            document.querySelector('input[placeholder="キャラクター名"]').value = data.profile.name || "";
+            document.querySelector('input[placeholder="職業"]').value = data.profile.job || "";
+            document.querySelector('input[placeholder="年齢"]').value = data.profile.age || "";
+            document.querySelector('select').value = data.profile.gender || "男性";
+        }
+
+        if (data.stats) {
+            for (let key in data.stats) {
+                const el = document.getElementById(key);
+                if (el) el.value = data.stats[key];
+            }
+        }
+
+        updateDerivedStats();
+        initSkills();
+
+        if (data.currentStatus) {
+            document.getElementById('hp-current').value = data.currentStatus.hp;
+            document.getElementById('mp-current').value = data.currentStatus.mp;
+            document.getElementById('san-current').value = data.currentStatus.san;
+            updateBar('hp'); updateBar('mp'); updateBar('san');
+        }
+
+        if (data.skills) {
+            data.skills.forEach((s, index) => {
+                const j = document.getElementById(`skill-job-${index}`);
+                const i = document.getElementById(`skill-interest-${index}`);
+                if (j) j.value = s.job;
+                if (i) i.value = s.interest;
+                updateSkillTotal(index);
+            });
+        }
+
+        // 武器リストの復元
+        const weaponContainer = document.getElementById('weapon-list');
+        weaponContainer.innerHTML = ''; 
+        if (data.weapons && data.weapons.length > 0) {
+            data.weapons.forEach(w => addWeaponRow(w));
+        }
+
+        // 所持品リストの復元（ここが壊れていました）
+        const invContainer = document.getElementById('inventory-list');
+        invContainer.innerHTML = '';
+        if (data.inventory && Array.isArray(data.inventory)) {
+            data.inventory.forEach(item => addInventoryRow(item));
+        }
+    } catch (e) { console.error("Apply error:", e); }
+};
+
+const addWeaponRow = (w = {name: '', rate: '', dmg: '', cnt: '', ammo: ''}) => {
+    const container = document.getElementById('weapon-list');
+    const div = document.createElement('div');
+    div.className = 'skill-item weapon-item';
+    // 削除ボタンを追加するために列を 0.5fr 分増やします
+    div.style.gridTemplateColumns = '2fr 1fr 1fr 1fr 1fr 0.5fr';
+    
+    div.innerHTML = `
+        <input type="text" class="w-name" placeholder="武器名" value="${w.name}">
+        <input type="number" class="w-rate" placeholder="成功率" value="${w.rate}">
+        <input type="text" class="w-dmg" placeholder="ダメージ" value="${w.dmg}">
+        <input type="text" class="w-cnt" placeholder="回数" value="${w.cnt}">
+        <input type="text" class="w-ammo" placeholder="装弾数" value="${w.ammo}">
+        <button class="delete-weapon" style="background:none; border:none; color:#e64553; cursor:pointer; font-size:1.2rem; padding:0;">×</button>
+    `;
+    container.appendChild(div);
+    
+    // 削除ボタンのイベント
+    div.querySelector('.delete-weapon').addEventListener('click', () => {
+        if (confirm('この武器を削除しますか？')) {
+            div.remove();
+            autoSave(); // 削除した状態を保存
+        }
+    });
+
+    // 入力時の自動保存
+    div.querySelectorAll('input').forEach(i => i.addEventListener('input', autoSave));
+};
+
+// ボタンイベントの登録
+document.getElementById('add-weapon').addEventListener('click', () => {
+    addWeaponRow();
+    autoSave();
+});
+
+const addInventoryRow = (item = {name: '', note: ''}) => {
+    const container = document.getElementById('inventory-list');
+    const div = document.createElement('div');
+    div.className = 'skill-item inventory-item';
+    div.style.gridTemplateColumns = '2fr 1fr 0.5fr';
+    
+    div.innerHTML = `
+        <input type="text" class="i-name" placeholder="アイテム名" value="${item.name}">
+        <input type="text" class="i-note" placeholder="個数など" value="${item.note}">
+        <button class="delete-item" style="background:none; border:none; color:#e64553; cursor:pointer; font-size:1.2rem; padding:0;">×</button>
+    `;
+    container.appendChild(div);
+    
+    div.querySelector('.delete-item').addEventListener('click', () => {
+        div.remove();
+        autoSave();
+    });
+
+    div.querySelectorAll('input').forEach(i => i.addEventListener('input', autoSave));
+};
+
+// ボタンイベントの登録
+document.getElementById('add-item').addEventListener('click', () => {
+    addInventoryRow();
+    autoSave();
+});
+
+const autoSave = () => {
+    localStorage.setItem('coc_char_data', JSON.stringify(getAllCharacterData()));
+};
+
+// --- 4. イベント登録 ---
+
+document.getElementById('roll-all').addEventListener('click', () => {
+    const results = {
+        str: rollDice(3, 6), con: rollDice(3, 6), pow: rollDice(3, 6),
+        dex: rollDice(3, 6), app: rollDice(3, 6), siz: rollDice(2, 6) + 6,
+        int: rollDice(2, 6) + 6, edu: rollDice(3, 6) + 3
+    };
+    
+    let completed = 0;
+    const keys = Object.keys(results);
+
+    keys.forEach((key) => {
+        const obj = document.getElementById(key);
+        let start = 0, end = results[key], duration = 400, startTimestamp = null;
+        
+        const step = (timestamp) => {
+            if (!startTimestamp) startTimestamp = timestamp;
+            const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+            obj.value = Math.floor(progress * (end - start) + start);
+            updateStatGauges();
+            
+            if (progress < 1) {
+                window.requestAnimationFrame(step);
+            } else {
+                updateDerivedStats();
+                if(key === 'dex') initSkills();
+                
+                completed++;
+                // すべての能力値の演出が終わったら、現在値をMAXにする
+                if (completed === keys.length) {
+                    document.getElementById('hp-current').value = document.getElementById('hp-max').textContent;
+                    document.getElementById('mp-current').value = document.getElementById('mp-max').textContent;
+                    document.getElementById('san-current').value = document.getElementById('san-max').textContent;
+                    
+                    // バーの見た目を再更新
+                    updateBar('hp'); updateBar('mp'); updateBar('san');
+                    autoSave();
+                }
+            }
+        };
+        window.requestAnimationFrame(step);
+    });
+});
+
+['str', 'con', 'pow', 'dex', 'app', 'siz', 'int', 'edu'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+        el.addEventListener('input', () => {
+            if(id === 'dex') initSkills();
+            updateDerivedStats();
+            autoSave(); // 入力ごとに保存
+        });
+    }
+});
+
+// エクスポート・インポート
+document.getElementById('export-btn').addEventListener('click', () => {
+    const data = getAllCharacterData();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (data.profile.name || "character") + ".coc6";
+    a.click();
+});
+
+document.getElementById('import-btn-fake').addEventListener('click', () => document.getElementById('import-btn').click());
+
+document.getElementById('import-btn').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        try {
+            const data = JSON.parse(event.target.result);
+            applyCharacterData(data);
+            autoSave();
+            alert("インポートしました！");
+        } catch (err) { alert("形式が不正です"); }
+    };
+    reader.readAsText(file);
+});
+
+// 現在値の変更
+['hp', 'mp', 'san'].forEach(type => {
+    document.getElementById(`${type}-current`).addEventListener('input', () => {
+        updateBar(type);
+        autoSave();
+    });
+});
+
+// 初期起動
+window.onload = () => {
+    const saved = localStorage.getItem('coc_char_data');
+    if (saved) {
+        applyCharacterData(JSON.parse(saved));
+    } else {
+        initSkills(); 
+        updateDerivedStats();
+        addWeaponRow();    // 初期行を追加
+        addInventoryRow(); // 初期行を追加
+    }
+};
+</script>
+</body>
+</html>
