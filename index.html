@@ -1,701 +1,1272 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TRPG Scenario Writer</title>
-<style>
-:root{--bg:#0f1115;--panel:#171a21;--panel2:#1e222b;--accent:#4c8bf5;--text:#e6e8ee;--muted:#9aa3b2}
-*{box-sizing:border-box}
-body{margin:0;font-family:system-ui;background:linear-gradient(#0f1115,#0b0d11);color:var(--text);height:100vh;overflow:hidden}
-.layout{display:grid;grid-template-columns:260px 1fr 360px;height:100vh}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Character Sheet Builder</title>
+    <style>
+        :root {
+            --primary-bg: #1e1e2e;
+            --card-bg: #2b2b3b;
+            --accent: #89b4fa;
+            --text: #cdd6f4;
+            --input-bg: #313244;
+        }
 
-/* mobile layout */
-@media (max-width:900px){
-.layout{grid-template-columns:1fr}
-.sidebar{position:fixed;left:-280px;top:0;height:100%;width:260px;z-index:1000;transition:left .25s ease}
-.sidebar.open{left:0}
-.preview{position:fixed;right:-100%;top:0;height:100%;width:100%;z-index:900;transition:right .25s ease}
-.preview.open{right:0}
-.editor{padding-top:60px}
-.mobileBar{position:fixed;top:0;left:0;right:0;height:50px;background:#171a21;border-bottom:1px solid #232833;display:flex;align-items:center;gap:10px;padding:0 10px;z-index:1100}
-.mobileBtn{background:#1e222b;border:none;color:white;padding:6px 10px;border-radius:6px;font-size:18px}
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--primary-bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* ヘッダー */
+        header {
+            padding: 1rem;
+            background: var(--card-bg);
+            border-bottom: 2px solid var(--accent);
+            text-align: center;
+            font-weight: bold;
+        }
+
+        /* メインコンテンツ */
+        .container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 1rem;
+            padding: 1rem;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* サイドバー（固定ステータス） */
+        .sidebar {
+            background: var(--card-bg);
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-y: auto;
+        }
+
+        .status-box {
+            background: var(--input-bg);
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .status-val {
+            font-size: 1.5rem;
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        /* メインフォーム */
+        .main-form {
+            background: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 8px;
+            overflow-y: auto;
+        }
+
+        .section-title {
+            border-left: 4px solid var(--accent);
+            padding-left: 10px;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid var(--input-bg);
+            background: var(--input-bg);
+            color: white;
+            box-sizing: border-box;
+        }
+
+        /* スマホ対応 */
+@media (max-width: 768px) {
+    .container {
+        grid-template-columns: 1fr; /* スマホでは1列 */
+        padding: 0; /* 余白をなくす */
+    }
+    
+    .main-form {
+        padding: 1rem; /* フォームの余白を調整 */
+    }
 }
 
-.sidebar{background:var(--panel);border-right:1px solid #232833;padding:16px;overflow:auto}
-.sidebar h3{font-size:12px;color:var(--muted);text-transform:uppercase;margin-top:0}
-
-.navItem{padding:8px;border-radius:8px;cursor:grab;margin-bottom:4px;background:#11131a;transition:transform .25s ease,background .2s,opacity .2s}
-.navItem:hover{background:#1b1f27}
-.navItem.dragging{opacity:.3;transform:scale(.95)}
-.navItem.dragPreview{outline:2px dashed var(--accent);transform:scale(1.05)}
-.navDelete{float:right;color:#ff6b6b;cursor:pointer}
-
-.search{width:100%;padding:8px;margin-bottom:10px;background:#11131a;border:1px solid #252b36;border-radius:8px;color:white}
-.editor{overflow:auto;padding:26px}
-
-.titleInput{font-size:24px;font-weight:600;background:none;border:none;color:white;width:100%;outline:none;margin-bottom:10px}
-.summaryInput{width:100%;background:var(--panel);border:1px solid #252b36;border-radius:10px;padding:10px;margin-bottom:20px;color:white}
-
-.scene{background:var(--panel);border:1px solid #252b36;border-radius:14px;padding:12px;margin-bottom:16px;transition:transform .22s ease, box-shadow .22s ease, opacity .2s}
-.scene.dragging{opacity:.25;transform:scale(.96)}
-.scene.dragPreview{outline:2px dashed var(--accent);transform:scale(1.02)}
-
-.dragGhost{position:absolute;pointer-events:none;z-index:9999;transform:rotate(2deg) scale(1.02);box-shadow:0 20px 40px rgba(0,0,0,.6);opacity:.95}
-
-.sceneHeader{display:flex;gap:6px;margin-bottom:6px;align-items:center}
-.dragHandle{cursor:grab;font-size:14px;padding:4px 6px;background:#11131a;border-radius:6px}
-.sceneTitle{flex:1;background:#11131a;border:1px solid #252b36;border-radius:8px;color:white;padding:6px}
-.sceneContent{width:100%;height:140px;background:#11131a;border:1px solid #252b36;border-radius:8px;color:white;padding:8px}
-.tagInput{margin-top:6px;width:100%;background:#11131a;border:1px solid #252b36;border-radius:8px;padding:6px;color:white}
-
-.linkRow{margin-top:6px;font-size:12px;color:var(--muted)}
-
-button{background:var(--panel2);border:none;color:white;padding:6px 10px;border-radius:8px;cursor:pointer}
-button:hover{background:#2a303c}
-
-.preview{background:var(--panel);border-left:1px solid #232833;padding:24px;overflow:auto}
-.panel{margin-top:20px}
-.card{background:#11131a;padding:8px;border-radius:8px;margin-bottom:8px;font-size:13px}
-
-.palette{position:fixed;top:20%;left:50%;transform:translateX(-50%);width:420px;background:var(--panel);border:1px solid #2a2f3b;border-radius:12px;padding:12px;box-shadow:0 30px 60px rgba(0,0,0,.6)}
-.palette input{width:100%;padding:10px;border-radius:8px;border:1px solid #252b36;background:#11131a;color:white;margin-bottom:10px}
-.commandItem{padding:8px;border-radius:6px;cursor:pointer}
-.commandItem:hover{background:var(--panel2)}
-.hidden{display:none}
-
-.modalOverlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center}
-.modal{background:var(--panel);padding:20px;border-radius:12px;width:320px;position:relative}
-.closeBtn{position:absolute;top:8px;right:10px;cursor:pointer;font-size:18px;color:#aaa}
-.modal input,.modal textarea,.modal select{width:100%;margin-bottom:8px;padding:8px;background:#11131a;border:1px solid #252b36;border-radius:8px;color:white}
-
-/* mobile bar hidden on desktop */
-.mobileBar{display:none}
-
-@media (max-width:900px){
-.mobileBar{display:flex}
-.editor{padding-top:60px}
-.header{margin-top:10px}
+@media (max-width: 768px) {
+    .sidebar {
+        position: fixed; /* 画面に固定 */
+        top: 0;
+        left: 0;
+        width: 280px; /* サイドバーの幅 */
+        height: 100vh; /* 画面いっぱいの高さ */
+        margin: 0;
+        padding: 0;
+        transform: translateX(-100%); /* 普段は画面左外に隠す */
+        background: var(--card-bg);
+        border-radius: 0;
+        box-shadow: 5px 0 15px rgba(0,0,0,0.5);
+    }
+    
+    /* サイドバーが開いている時の状態 */
+    .sidebar.open {
+        transform: translateX(0); /* 画面内にスライドさせる */
+    }
+    
+    /* サイドバーの中身のコンテナ（スクロール用） */
+    .sidebar-content {
+        height: 100%;
+        overflow-y: auto; /* サイドバー内が長ければスクロール */
+        padding: 1rem;
+        padding-top: 60px; /* 開閉ボタンとかぶらないように余白 */
+    }
+    
+    /* オーバーレイ（背景の暗幕） */
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 50; /* ★サイドバー(100)より低く、メイン画面より高い値 */
+    }
+    
+    .sidebar.open .sidebar-overlay {
+        display: block;
+    }
+    .sidebar.open ~ .sidebar-overlay, /* 隣接要素の場合 */
+    .sidebar-overlay.active { 
+        display: block;
+    }
 }
 
-/* collapsible scenes */
-.scene.collapsed .cards{display:none}
-.sceneHeader{display:flex;align-items:center;gap:6px;cursor:pointer}
-.sceneToggle{font-size:12px;opacity:.8}
+        .status-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr); /* 3列で綺麗に並べる */
+        gap: 15px;
+    }
+    .stat-item {
+        background: var(--input-bg);
+        padding: 10px;
+        border-radius: 6px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    .stat-item label {
+        font-weight: bold;
+        margin-bottom: 5px;
+        color: var(--accent);
+    }
+    .stat-item .dice-type {
+        font-size: 0.7rem;
+        margin-top: 5px;
+        color: #949cbb;
+    }
+    .stat-item input {
+        text-align: center;
+        font-size: 1.1rem;
+    }
+    /* --- CSS追加・修正案 --- */
 
-</style>
+/* 入力欄の基本スタイルを少し調整 */
+input, select, textarea {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    outline: none;
+    transition: border-color 0.2s;
+}
+input:focus {
+    border-color: var(--accent) !important;
+}
+
+/* インジケーターボックス */
+.status-indicator-box {
+    margin-bottom: 20px;
+    background: var(--input-bg);
+    padding: 15px;
+    border-radius: 8px;
+}
+
+/* ラベルと数値の行 */
+.status-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+.status-label {
+    color: #949cbb;
+}
+
+.status-values {
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* 現在値の入力欄（インジケーター内） */
+.current-input {
+    width: 45px !important;
+    padding: 2px 4px !important;
+    font-size: 1.1rem !important;
+    text-align: center;
+    border: none !important;
+    background: transparent !important;
+    color: var(--accent) !important;
+    font-weight: bold;
+}
+/* Chromeなどでのnumber入力の矢印を消す */
+.current-input::-webkit-inner-spin-button,
+.current-input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.max-val {
+    font-size: 0.9rem;
+    color: #949cbb;
+}
+
+/* バーのコンテナ */
+.bar-container {
+    width: 100%;
+    height: 10px;
+    background-color: #11111b; /* ダークな背景 */
+    border-radius: 5px;
+    overflow: hidden;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
+}
+
+/* バーの中身（共通） */
+.bar-fill {
+    height: 100%;
+    border-radius: 5px;
+    transition: width 0.3s ease-out, background-color 0.3s ease; /* アニメーション */
+    width: 0%; /* JSで制御 */
+}
+
+/* バーの色（CoCのイメージ） */
+.hp-color { background-color: #e64553; } /* 赤 */
+.mp-color { background-color: #40a02b; } /* 緑 */
+.san-color { background-color: #1e66f5; } /* 青 */
+
+/* 瀕死や狂気の時の警告色（JSでクラスを付与する） */
+.bar-fill.danger {
+    background-color: #fe640b !important; /* オレンジ */
+    animation: pulse 1s infinite;
+}
+
+/* 能力値の入力欄（main-form）のデザインも統一 */
+.stat-item input {
+    width: 100%;
+    border: none;
+    border-bottom: 2px solid #11111b;
+    border-radius: 0;
+    transition: border-color 0.3s;
+}
+
+/* ボタンのデザインを強化 */
+.primary-button {
+    width: 100%;
+    padding: 12px;
+    background: var(--card-bg);
+    color: var(--accent);
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.primary-button:hover {
+    background: var(--accent);
+    color: var(--primary-bg);
+    box-shadow: 0 0 15px rgba(137, 180, 250, 0.5);
+}
+
+/* SAN値などが低いときの脈動アニメーション */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.6; }
+    100% { opacity: 1; }
+}
+/* 能力値用の小さなゲージ */
+.stat-bar-container {
+    width: 80%;
+    height: 4px;
+    background: #11111b;
+    border-radius: 2px;
+    margin: 5px 0;
+    overflow: hidden;
+}
+
+.stat-bar-fill {
+    height: 100%;
+    width: 0%; /* JSで制御 */
+    background: var(--accent); /* 基本はアクセントカラー */
+    transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.3s;
+}
+
+/* 高い能力値（15以上など）の時に色を変える演出 */
+.stat-bar-fill.heroic {
+    background: #fab387; /* オレンジがかった色で「すごい感」を出す */
+    box-shadow: 0 0 5px rgba(250, 179, 135, 0.5);
+}
+/* 技能エリアのスタイル */
+.skill-container {
+    background: var(--input-bg);
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.skill-header, .skill-item {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr; /* 5列構成 */
+    gap: 5px;
+    align-items: center;
+    padding: 5px;
+    border-bottom: 1px solid var(--card-bg);
+}
+
+.skill-header {
+    font-size: 0.8rem;
+    color: var(--accent);
+    font-weight: bold;
+    text-align: center;
+}
+
+.skill-item input {
+    padding: 4px !important;
+    text-align: center;
+    font-size: 0.9rem !important;
+}
+
+.skill-name {
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+.skill-total {
+    color: var(--accent);
+    font-weight: bold;
+    background: rgba(137, 180, 250, 0.1);
+    border-radius: 4px;
+    text-align: center;
+}
+.section-title {
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.2s;
+    padding: 10px; /* クリック領域を広く */
+    border-radius: 4px;
+}
+
+.section-title:hover {
+    background: rgba(137, 180, 250, 0.1);
+}
+
+.section-title::after {
+    content: '▼';
+    font-size: 0.8rem;
+    transition: transform 0.3s;
+    margin-right: 10px;
+    color: var(--accent); /* 矢印の色をアクセントカラーに */
+}
+
+.section-title.collapsed::after {
+    transform: rotate(-90deg); /* 閉じている時は横向き */
+}
+
+/* 折りたたみ対象のコンテンツ（アニメーション付き） */
+.collapsible-content {
+    /* transition: max-height 0.3s ease-out, opacity 0.3s; 
+       ★技能リストが長いとmax-heightのアニメーションは難しいので、
+       今回はシンプルに表示/非表示を切り替える設定にします。 */
+    display: block;
+    opacity: 1;
+}
+
+.collapsible-content.hidden {
+    display: none; /* 完全に非表示 */
+}
+
+.sidebar {
+    /* デスクトップ表示時の基本スタイル（以前のものを継承） */
+    transition: transform 0.3s ease-in-out; /* スライドアニメーション */
+    z-index: 100; /* ヘッダーより上に表示 */
+}
+/* --- モバイル用ボタンの設定（全サイズ共通のベース） --- */
+.sidebar-toggle-btn {
+    display: none; /* ★まず基本（PC版など）は非表示にする */
+    position: fixed;
+    top: 8px;
+    left: 15px;
+    width: 40px;
+    height: 40px;
+    background: var(--accent);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    z-index: 200;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    
+    /* アイコンの中身を中央寄せにする設定 */
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+}
+
+@media (max-width: 768px) {
+    .sidebar-toggle-btn {
+        display: flex; /* スマホでは表示 */
+    }
+    
+    .sidebar-toggle-btn span {
+        display: block;
+        width: 22px;
+        height: 2px;
+        background: var(--primary-bg); /* 三本線の色 */
+        border-radius: 1px;
+        transition: all 0.3s;
+    }
+}
+
+/* ボタンをクリックした時のアニメーション（三本線が「×」になる） */
+.sidebar-toggle-btn.active span:nth-child(1) {
+    transform: translateY(7px) rotate(45deg);
+}
+.sidebar-toggle-btn.active span:nth-child(2) {
+    opacity: 0; /* 真ん中の線は消す */
+}
+.sidebar-toggle-btn.active span:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg);
+}
+
+    </style>
 </head>
 <body>
-<div class="mobileBar">
-<button class="mobileBtn" onclick="toggleSidebar()">☰</button>
-<button class="mobileBtn" onclick="togglePreview()">👁</button>
+<button id="sidebar-toggle" class="sidebar-toggle-btn">
+    <span></span>
+    <span></span>
+    <span></span>
+</button>
+
+<div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<header>TRPGキャラシエディター</header>
+
+<div class="container">
+    <aside id="sidebar" class="sidebar">
+        <div class="sidebar-content">
+            <div class="section-title">Current Status</div>
+        
+        <div class="status-indicator-box">
+            <div class="status-label-row">
+                <span class="status-label">HP (耐久力)</span>
+                <span class="status-values">
+                    <input type="number" id="hp-current" class="current-input" value="-">
+                    / <span id="hp-max" class="max-val">-</span>
+                </span>
+            </div>
+            <div class="bar-container">
+                <div id="hp-bar" class="bar-fill hp-color" style="width: 100%;"></div>
+            </div>
+        </div>
+
+        <div class="status-indicator-box">
+            <div class="status-label-row">
+                <span class="status-label">MP (マジックポイント)</span>
+                <span class="status-values">
+                    <input type="number" id="mp-current" class="current-input" value="-">
+                    / <span id="mp-max" class="max-val">-</span>
+                </span>
+            </div>
+            <div class="bar-container">
+                <div id="mp-bar" class="bar-fill mp-color" style="width: 100%;"></div>
+            </div>
+        </div>
+
+        <div class="status-indicator-box">
+            <div class="status-label-row">
+                <span class="status-label">SAN (正気度)</span>
+                <span class="status-values">
+                    <input type="number" id="san-current" class="current-input" value="-">
+                    / <span id="san-max" class="max-val">-</span>
+                </span>
+            </div>
+            <div class="bar-container">
+                <div id="san-bar" class="bar-fill san-color" style="width: 100%;"></div>
+            </div>
+        </div>
+
+        <button id="roll-all" class="primary-button" style="margin-top: 20px;">🎲 能力値を一括生成</button>
+        
+        <div class="status-indicator-box" style="margin-top: 10px; display: flex; gap: 5px;">
+            <button id="export-btn" class="primary-button" style="padding: 8px; font-size: 0.8rem;">エクスポート</button>
+            <button id="import-btn-fake" class="primary-button" style="padding: 8px; font-size: 0.8rem; border-color: #a6adc8; color: #a6adc8;">インポート</button>
+            <input type="file" id="import-btn" style="display: none;" accept=".coc6">
+        </div>
+
+        <div class="status-indicator-box" style="border: 1px dashed var(--accent);">
+            <div class="status-label-row">
+                <span class="status-label">職業技能ポイント残</span>
+                <span id="job-pts-left" class="status-val" style="font-size: 1.1rem;">0</span>
+            </div>
+            <div class="status-label-row" style="margin-top: 10px;">
+                <span class="status-label">興味技能ポイント残</span>
+                <span id="interest-pts-left" class="status-val" style="font-size: 1.1rem;">0</span>
+            </div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-form">
+        <section>
+        <div class="section-title" onclick="toggleSection(this)">基本プロフィール</div>
+            <div class="collapsible-content">
+            <div class="input-group">
+                <input type="text" placeholder="キャラクター名">
+                <input type="text" placeholder="職業">
+            </div>
+            <div class="input-group">
+                <input type="number" placeholder="年齢">
+                <input type="text" placeholder="性別">
+                <input type="number" placeholder="身長">
+                <input type="text" placeholder="体重">
+                <input type="text" placeholder="出身地">
+            </div>
+        </section>
+
+        <section style="margin-top: 2rem;">
+        <div class="section-title" onclick="toggleSection(this)">能力値 (Status)</div>
+            <div class="collapsible-content">
+            
+            <div class="status-grid">
+                <div class="stat-item">
+                    <label>STR</label>
+                    <input type="number" id="str" value="-" min="3" max="18">
+                    <div class="stat-bar-container"><div id="str-bar" class="stat-bar-fill"></div></div>
+                    <span class="dice-type">3d6</span>
+                </div>
+                <div class="stat-item">
+                    <label>CON</label>
+                    <input type="number" id="con" value="-" min="3" max="18">
+                    <div class="stat-bar-container"><div id="con-bar" class="stat-bar-fill"></div></div>
+                    <span class="dice-type">3d6</span>
+                </div>
+                <div class="stat-item">
+                    <label>POW</label>
+                    <input type="number" id="pow" value="-" min="3" max="18">
+                    <div class="stat-bar-container"><div id="pow-bar" class="stat-bar-fill"></div></div>
+                    <span class="dice-type">3d6</span>
+                </div>
+                <div class="stat-item">
+                    <label>DEX</label>
+                    <input type="number" id="dex" value="-" min="3" max="18">
+                    <div class="stat-bar-container"><div id="dex-bar" class="stat-bar-fill"></div></div>
+                    <span class="dice-type">3d6</span>
+                </div>
+                <div class="stat-item">
+                    <label>APP</label>
+                    <input type="number" id="app" value="-" min="3" max="18">
+                    <div class="stat-bar-container"><div id="app-bar" class="stat-bar-fill"></div></div>
+                    <span class="dice-type">3d6</span>
+                </div>
+                <div class="stat-item">
+                    <label>SIZ</label>
+                    <input type="number" id="siz" value="-" min="8" max="18">
+                    <div class="stat-bar-container"><div id="siz-bar" class="stat-bar-fill"></div></div>
+                    <span class="dice-type">2d6+6</span>
+                </div>
+                <div class="stat-item">
+                    <label>INT</label>
+                    <input type="number" id="int" value="-" min="8" max="18">
+                    <div class="stat-bar-container"><div id="int-bar" class="stat-bar-fill"></div></div>
+                    <span class="dice-type">2d6+6</span>
+                </div>
+                <div class="stat-item">
+                    <label>EDU</label>
+                    <input type="number" id="edu" value="-" min="6" max="21">
+                    <div class="stat-bar-container"><div id="edu-bar" class="stat-bar-fill"></div></div>
+                    <span class="dice-type">3d6+3</span>
+                </div>
+                <div class="stat-item">
+                    <label>LUK</label>
+                    <input type="number" id="luk" value="50" readonly style="opacity: 0.7;">
+                    <div class="stat-bar-container"><div id="luk-bar" class="stat-bar-fill"></div></div>
+                    <span class="dice-type">POW×5</span>
+                </div>
+                <div class="stat-item">
+                    <label>アイデア</label>
+                    <input type="number" id="idea" value="-" readonly style="opacity: 0.7;">
+                    <div class="stat-bar-container"><div id="idea-bar" class="stat-bar-fill"></div></div>
+                    <span class="dice-type">INT×5</span>
+                </div>
+                <div class="stat-item">
+                    <label>知識</label>
+                    <input type="number" id="knowledge" value="-" readonly style="opacity: 0.7;">
+                    <div class="stat-bar-container"><div id="knowledge-bar" class="stat-bar-fill"></div></div>
+                    <span class="dice-type">EDU×5</span>
+                </div>
+                <div class="stat-item">
+                    <label>DB</label>
+                    <input type="text" id="db-stat-val" value="なし" readonly style="opacity: 0.7;">
+                    <div style="height: 4px; margin: 5px 0;"></div> <span class="dice-type">STR+SIZ</span>
+                </div>
+                <div class="stat-item">
+                <label>HP最大値</label>
+                    <input type="number" id="hp-max-stat" value="-" readonly style="opacity: 0.7;">
+                    <div class="stat-bar-container"><div id="hp-max-stat-bar" class="stat-bar-fill"></div></div>
+                    <span class="dice-type">(CON+SIZ) ÷ 2</span>
+                </div>
+                <div class="stat-item">
+                    <label>MP最大値</label>
+                    <input type="number" id="mp-max-stat" value="-" readonly style="opacity: 0.7;">
+                    <div class="stat-bar-container"><div id="mp-max-stat-bar" class="stat-bar-fill"></div></div>
+                    <span class="dice-type">POW</span>
+                </div>
+                <div class="stat-item">
+                    <label>SAN最大値</label>
+                    <input type="number" id="san-max-stat" value="-" readonly style="opacity: 0.7;">
+                    <div class="stat-bar-container"><div id="san-max-stat-bar" class="stat-bar-fill"></div></div>
+                    <span class="dice-type">POW×5</span>
+                </div>
+        </div>
+        </section>
+<section style="margin-top: 2rem;">
+    <div class="section-title" onclick="toggleSection(this)">技能 (Skills)</div>
+    
+    <div id="skill-content" class="collapsible-content">
+        <div class="skill-header">
+            <span>技能名</span>
+            <span>初期値</span>
+            <span>職業P</span>
+            <span>興味P</span>
+            <span>合計</span>
+        </div>
+        <div id="skill-list" class="skill-container">
+            </div>
+    </div>
+</section>
+<section style="margin-top: 2rem;">
+        <div class="section-title" onclick="toggleSection(this)">武器・戦闘 (Combat)</div>
+            <div class="collapsible-content">
+    <div class="status-indicator-box">
+        <div class="status-label-row">
+            <span class="status-label">ダメージボーナス (DB)</span>
+            <span id="db-val" class="status-val" style="font-size: 1.1rem;">なし</span>
+        </div>
+    </div>
+    
+<div class="skill-header" style="grid-template-columns: 2fr 1fr 1fr 1fr 1fr 0.5fr;">
+    <span>武器名</span>
+    <span>成功率</span>
+    <span>ダメージ</span>
+    <span>回数</span>
+    <span>装弾数</span>
+    <span>操作</span>
 </div>
-<div class="layout">
+    <div id="weapon-list" class="skill-container">
+        <div class="skill-item weapon-item">
+        </div>
+    </div>
+    <button id="add-weapon" class="primary-button" style="margin-top: 10px; font-size: 0.8rem; border-style: dashed;">+ 武器を追加</button>
+</section>
 
-<div class="sidebar">
-<h3>Scenes</h3>
-<input id="search" class="search" placeholder="シーン検索">
-<div id="sceneNav"></div>
-<hr>
-<button onclick="addScene()">＋ シーン</button>
-<button onclick="exportScenario()">保存</button>
-
-<div class="panel">
-<h3>NPC</h3>
-<div id="npcList"></div>
-<button onclick="openNPCModal()">＋ NPC</button>
+<section style="margin-top: 2rem;">
+        <div class="section-title" onclick="toggleSection(this)">所持品 (Inventory)</div>
+            <div class="collapsible-content">
+    <div class="skill-header" style="grid-template-columns: 2fr 1fr 0.5fr;">
+        <span>アイテム名</span>
+        <span>個数/備考</span>
+        <span>操作</span>
+    </div>
+    <div id="inventory-list" class="skill-container">
+        </div>
+    <button id="add-item" class="primary-button" style="margin-top: 10px; font-size: 0.8rem; border-style: dashed;">+ アイテムを追加</button>
+</section>
+    </main>
 </div>
-
-<div class="panel">
-<h3>Clues</h3>
-<div id="clueList"></div>
-<button onclick="openClueModal()">＋ 手がかり</button>
-</div>
-</div>
-
-<div class="editor">
-<input id="title" class="titleInput" placeholder="シナリオタイトル">
-<textarea id="summary" class="summaryInput" placeholder="概要"></textarea>
-<div id="scenes"></div>
-</div>
-
-<div class="preview" id="preview"></div>
-
-</div>
-
-<div id="commandPalette" class="palette hidden">
-<input id="commandInput" placeholder="コマンド">
-<div id="commandList"></div>
-</div>
-
-<div id="modalRoot"></div>
 
 <script>
-let data={title:"",summary:"",scenes:[],npcs:[],clues:[]}
-let dragSceneIndex=null
-let isDraggingScene=false
-let navDragIndex=null
-let ghost=null
-let lastSwapIndex=null
-
-const commands={
-scene:{run:addScene,desc:"シーン追加"},
-npc:{run:openNPCModal,desc:"NPC追加"},
-save:{run:exportScenario,desc:"保存"},
-template:{run:generateTemplate,desc:"テンプレート生成"}
-}
-
-function clearScenePreviews(){
- document.querySelectorAll(".scene.dragPreview").forEach(x=>x.classList.remove("dragPreview"))
-}
-
-function clearNavPreviews(){
- document.querySelectorAll(".navItem.dragPreview").forEach(x=>x.classList.remove("dragPreview"))
-}
-
-function createGhost(el,e){ghost=el.cloneNode(true);ghost.classList.add("dragGhost");ghost.style.width=el.offsetWidth+"px";document.body.appendChild(ghost);moveGhost(e)}
-function moveGhost(e){if(!ghost)return;ghost.style.left=e.pageX+10+"px";ghost.style.top=e.pageY+10+"px"}
-function removeGhost(){if(ghost){ghost.remove();ghost=null}}
-
-function save(){
- localStorage.setItem("tsw", JSON.stringify(data))
- renderPreview()
-}
-
-function load(){
- const d = localStorage.getItem("tsw")
- if(d) data = JSON.parse(d)
- render()
-}
-
-initMobileDrag()
-load()
-
-function addScene(){data.scenes.push({title:"",content:"",tags:"",links:[]});render();save()}
-
-function generateTemplate(){
-data.scenes=[
-{title:"導入",content:"",tags:"",links:[]},
-{title:"探索",content:"",tags:"",links:[]},
-{title:"事件",content:"",tags:"",links:[]},
-{title:"クライマックス",content:"",tags:"",links:[]},
-{title:"エンディング",content:"",tags:"",links:[]}
-]
-render();save()
-}
-
-function removeScene(i){data.scenes.splice(i,1);render();save()}
-
-function render(){
-let c=document.getElementById("scenes");c.innerHTML=""
-
-data.scenes.forEach((s,i)=>{
-let div=document.createElement("div");div.className="scene";div.draggable=true
-
- div.addEventListener("dragstart",e=>{dragSceneIndex=i;isDraggingScene=true;div.classList.add("dragging");createGhost(div,e)})
- div.addEventListener("drag",moveGhost)
- div.addEventListener("dragend",()=>{div.classList.remove("dragging");removeGhost();clearScenePreviews();dragSceneIndex=null;isDraggingScene=false;lastSwapIndex=null})
-
- div.addEventListener("dragover",e=>{
- e.preventDefault()
- // プレビュー枠は使わない（触れたら即アニメーション）
-
- if(!isDraggingScene || dragSceneIndex===null) return
-
- const container=document.getElementById("scenes")
- const items=[...container.children]
- const draggedEl=items[dragSceneIndex]
- const targetEl=div
-
- if(!draggedEl || !targetEl || draggedEl===targetEl) return
-
- const targetIndex=items.indexOf(targetEl)
-
- // 中央より少し広い当たり判定（暴れ防止）
- const rect=targetEl.getBoundingClientRect()
- const upper=rect.top+rect.height*0.35
- const lower=rect.top+rect.height*0.65
-
- let newIndex=dragSceneIndex
-
- if(e.clientY<upper){
-   newIndex=targetIndex
- }
- else if(e.clientY>lower){
-   newIndex=targetIndex+1
- }
- else{
-   return
- }
-
- if(newIndex===dragSceneIndex || newIndex===dragSceneIndex+1) return
-
- if(lastSwapIndex===newIndex) return
- lastSwapIndex=newIndex
-
- const firstRects=items.map(el=>el.getBoundingClientRect())
-
- if(newIndex>=items.length){
-   container.appendChild(draggedEl)
- }else{
-   container.insertBefore(draggedEl,items[newIndex])
- }
-
- const newItems=[...container.children]
- const lastRects=newItems.map(el=>el.getBoundingClientRect())
-
- newItems.forEach((el,i)=>{
-   if(el===draggedEl) return
-
-   const first=firstRects[items.indexOf(el)]
-   const last=lastRects[i]
-   if(!first||!last) return
-
-   const dx=first.left-last.left
-   const dy=first.top-last.top
-
-   if(dx||dy){
-     el.style.transition="transform 0s"
-     el.style.transform=`translate(${dx}px,${dy}px)`
-
-     requestAnimationFrame(()=>{
-       el.style.transition="transform .22s ease"
-       el.style.transform=""
-     })
-   }
- })
-
- const moved=data.scenes.splice(dragSceneIndex,1)[0]
- data.scenes.splice(newIndex>dragSceneIndex?newIndex-1:newIndex,0,moved)
- dragSceneIndex=newIndex>dragSceneIndex?newIndex-1:newIndex
-})
- div.addEventListener("dragleave",()=>div.classList.remove("dragPreview"))
-
- div.addEventListener("drop",e=>{
- let npc=e.dataTransfer.getData("npc")
- let clue=e.dataTransfer.getData("clue")
-
- if(npc){
- data.scenes[i].content+=`\nNPC:${npc}「」`
- render();save();return
- }
-
- if(clue){
- data.scenes[i].content+=`\n[手がかり:${clue}]`
- render();save();return
- }
-
- if(dragSceneIndex!==null){
- lastSwapIndex=null
- clearScenePreviews()
- render();save()
- }
- })
-
- div.innerHTML=`
- <div class="sceneHeader">
- <div class="dragHandle">☰</div>
- <input class="sceneTitle" value="${s.title}" placeholder="シーン" oninput="updateSceneTitle(${i},this.value)">
- <button onclick="removeScene(${i})">✖</button>
- </div>
- <textarea class="sceneContent" oninput="updateSceneContent(${i},this.value)">${s.content}</textarea>
- <input class="tagInput" value="${s.tags||""}" placeholder="タグ" oninput="updateTags(${i},this.value)">
- <div class="linkRow">分岐 → ${renderLinks(i)}</div>
- <button onclick="openLinkModal(${i})">分岐追加</button>
- `
-
- c.appendChild(div)
-})
-
-updateSceneNav();renderNPCs();renderClues();renderPreview()
-}
-
-function renderLinks(i){
-let s=data.scenes[i]
-if(!s.links||!s.links.length)return"なし"
-return s.links.map(l=>data.scenes[l]?.title||"?").join(" , ")
-}
-
-function openLinkModal(i){
-let options=data.scenes.map((s,idx)=>`<option value="${idx}">${s.title||("Scene"+(idx+1))}</option>`).join("")
-modal(`<div class='closeBtn' onclick='closeModal()'>✕</div><h3>分岐先</h3><select id='linkTarget'>${options}</select><button onclick='createLink(${i})'>追加</button>`)
-}
-
-function createLink(i){
-let t=document.getElementById("linkTarget").value
-if(!data.scenes[i].links)data.scenes[i].links=[]
-data.scenes[i].links.push(Number(t))
-closeModal()
-render();save()
-}
-
-function updateSceneTitle(i,v){data.scenes[i].title=v;save();updateSceneNav()}
-function updateSceneContent(i,v){data.scenes[i].content=v;save()}
-function updateTags(i,v){data.scenes[i].tags=v;save()}
-
-function updateSceneNav(){
-let nav=document.getElementById("sceneNav");nav.innerHTML=""
-
-let firstRects=[]
-
-function animate(){
- const items=[...nav.children]
- const lastRects=items.map(el=>el.getBoundingClientRect())
-
- items.forEach((el,i)=>{
-  const first=firstRects[i]
-  const last=lastRects[i]
-  if(!first||!last) return
-
-  const dx=first.left-last.left
-  const dy=first.top-last.top
-
-  if(dx||dy){
-   el.style.transition="transform 0s"
-   el.style.transform=`translate(${dx}px,${dy}px)`
-
-   requestAnimationFrame(()=>{
-    el.style.transition="transform .22s ease"
-    el.style.transform=""
-   })
-  }
- })
-}
-
-data.scenes.forEach((s,i)=>{
-let item=document.createElement("div");item.className="navItem";item.draggable=true
-item.innerHTML=`${s.title||("Scene "+(i+1))}<span class='navDelete' onclick='deleteFromNav(${i})'>✕</span>`
-
-item.addEventListener("dragstart",e=>{
- navDragIndex=i
- item.classList.add("dragging")
- createGhost(item,e)
- firstRects=[...nav.children].map(el=>el.getBoundingClientRect())
-})
-
-item.addEventListener("drag",moveGhost)
-
-item.addEventListener("dragend",()=>{
- item.classList.remove("dragging")
- removeGhost()
- clearNavPreviews()
- navDragIndex=null
-})
-
-item.addEventListener("dragover",e=>{
- e.preventDefault()
- // プレビュー枠は使わない
-
- if(navDragIndex===null) return
-
- const container=nav
- const items=[...container.children]
- const dragged=items[navDragIndex]
- const target=item
-
- if(!dragged||dragged===target) return
-
- const targetIndex=items.indexOf(target)
-
- const rect=target.getBoundingClientRect()
-const upper=rect.top+rect.height*0.35
-const lower=rect.top+rect.height*0.65
-
-let newIndex=navDragIndex
-
-if(e.clientY<upper){
- newIndex=targetIndex
-}
-else if(e.clientY>lower){
- newIndex=targetIndex+1
-}
-else{
- return
-}
-
-if(newIndex===navDragIndex||newIndex===navDragIndex+1) return
-
- if(newIndex>=items.length){
-  container.appendChild(dragged)
- }else{
-  container.insertBefore(dragged,items[newIndex])
- }
-
- animate()
-
- const moved=data.scenes.splice(navDragIndex,1)[0]
- data.scenes.splice(newIndex>navDragIndex?newIndex-1:newIndex,0,moved)
- navDragIndex=newIndex>navDragIndex?newIndex-1:newIndex
-})
-
-item.addEventListener("dragleave",()=>item.classList.remove("dragPreview"))
-
-item.addEventListener("drop",()=>{
- navDragIndex=null
- clearNavPreviews()
- render();save()
-})
-
-item.onclick=()=>document.querySelectorAll(".scene")[i].scrollIntoView({behavior:"smooth"})
-nav.appendChild(item)
-})
-}
-
-function deleteFromNav(i){data.scenes.splice(i,1);render();save()}
-
-function renderNPCs(){
-let list=document.getElementById("npcList");list.innerHTML=""
-data.npcs.forEach((n,i)=>{
-let d=document.createElement("div")
-d.className="card"
-d.draggable=true
-
-d.innerHTML=`<b>${n.name}</b><br>${n.desc}`
-
-d.addEventListener("dragstart",e=>{
-e.dataTransfer.setData("npc",n.name)
-})
-
-list.appendChild(d)
-})
-}
-
-function renderClues(){
-let list=document.getElementById("clueList");list.innerHTML=""
-data.clues.forEach((c,i)=>{
-let d=document.createElement("div")
-d.className="card"
-d.draggable=true
-
-d.innerHTML=`<b>${c.title}</b><br>${c.desc}`
-
-d.addEventListener("dragstart",e=>{
-e.dataTransfer.setData("clue",c.title)
-})
-
-list.appendChild(d)
-})
-}
-
-function openNPCModal(){modal(`<div class='closeBtn' onclick='closeModal()'>✕</div><h3>NPC追加</h3><input id='npcName' placeholder='名前'><textarea id='npcDesc' placeholder='説明'></textarea><button onclick='createNPC()'>追加</button>`)}
-
-function createNPC(){
-let name=document.getElementById("npcName").value
-if(!name)return
-let desc=document.getElementById("npcDesc").value
-
-data.npcs.push({name,desc})
-
-closeModal()
-renderNPCs()
-save()
-}
-
-function openClueModal(){modal(`<div class='closeBtn' onclick='closeModal()'>✕</div><h3>手がかり追加</h3><input id='clueTitle' placeholder='名前'><textarea id='clueDesc' placeholder='詳細'></textarea><button onclick='createClue()'>追加</button>`)}
-
-function createClue(){
-let title=document.getElementById("clueTitle").value
-if(!title)return
-let desc=document.getElementById("clueDesc").value
-
-data.clues.push({title,desc})
-
-closeModal()
-renderClues()
-save()
-}
-
-function modal(content){document.getElementById("modalRoot").innerHTML=`<div class='modalOverlay'><div class='modal'>${content}</div></div>`}
-function closeModal(){document.getElementById("modalRoot").innerHTML=""}
-
-function exportScenario(){
-let blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"})
-let a=document.createElement("a")
-a.href=URL.createObjectURL(blob)
-a.download="scenario.tsw"
-a.click()
-}
-
-// command palette
-
-document.addEventListener("keydown",e=>{
-if(e.ctrlKey&&e.key==="k"){
-e.preventDefault()
-let p=document.getElementById("commandPalette")
-p.classList.toggle("hidden")
-document.getElementById("commandInput").focus()
-updateCommandList("")
-}
-})
-
-const cmdInput=document.getElementById("commandInput")
-
-cmdInput.addEventListener("input",()=>updateCommandList(cmdInput.value))
-
-cmdInput.addEventListener("keydown",e=>{
-if(e.key==="Enter"){
-let cmd=cmdInput.value.trim().toLowerCase()
-if(commands[cmd])commands[cmd].run()
-cmdInput.value=""
-updateCommandList("")
-}
-})
-
-function updateCommandList(text){
-let list=document.getElementById("commandList")
-list.innerHTML=""
-Object.keys(commands).filter(c=>c.includes(text)).forEach(c=>{
-let div=document.createElement("div")
-div.className="commandItem"
-div.textContent=c+" — "+commands[c].desc
-div.onclick=()=>commands[c].run()
-list.appendChild(div)
-})
-}
-
-function renderPreview(){
-let p=document.getElementById("preview")
-let html=`<h1>${data.title}</h1><p>${data.summary}</p>`
-
-data.scenes.forEach(s=>{
-html+=`<h2>${s.title}</h2><p>${s.content.replace(/\\n/g,"<br>")}</p>`
-if(s.links?.length){
-html+="<p>→ "+s.links.map(l=>data.scenes[l]?.title).join(", ")+"</p>"
-}
-})
-
-p.innerHTML=html
-}
-
-load()
-
-// --- Mobile touch drag support (improved) ---
-function initMobileDrag(){
- let active=null
- let ghostEl=null
- let longPressTimer=null
-
- function startDrag(target,t){
-  active=target
-  const rect=active.getBoundingClientRect()
-
-  ghostEl=active.cloneNode(true)
-  ghostEl.classList.add("dragGhost")
-  ghostEl.style.width=rect.width+"px"
-  ghostEl.style.left=t.pageX+"px"
-  ghostEl.style.top=t.pageY+"px"
-  document.body.appendChild(ghostEl)
-
-  active.style.opacity="0.35"
- }
-
- document.addEventListener("touchstart",e=>{
-  const scene=e.target.closest(".scene")
-  const nav=e.target.closest(".navItem")
-  if(!scene && !nav) return
-
-  const target=scene||nav
-  const t=e.touches[0]
-
-  longPressTimer=setTimeout(()=>{
-   startDrag(target,t)
-   if(navigator.vibrate) navigator.vibrate(8)
-  },180)
- })
-
- document.addEventListener("touchmove",e=>{
-  if(!active||!ghostEl) return
-
-  const t=e.touches[0]
-
-  ghostEl.style.left=t.pageX+12+"px"
-  ghostEl.style.top=t.pageY+12+"px"
-
-  const el=document.elementFromPoint(t.clientX,t.clientY)
-
-  const scene=el?.closest(".scene")
-  const nav=el?.closest(".navItem")
-
-  if(scene){
-   scene.dispatchEvent(new DragEvent("dragover",{bubbles:true,clientY:t.clientY}))
-  }
-
-  if(nav){
-   nav.dispatchEvent(new DragEvent("dragover",{bubbles:true,clientY:t.clientY}))
-  }
-
-  // auto scroll
-  const edge=80
-  if(t.clientY < edge) window.scrollBy(0,-8)
-  if(t.clientY > window.innerHeight-edge) window.scrollBy(0,8)
- })
-
- document.addEventListener("touchend",()=>{
-  clearTimeout(longPressTimer)
-
-  if(ghostEl) ghostEl.remove()
-
-  if(active) active.style.opacity=""
-
-  ghostEl=null
-  active=null
- })
-}
-
-function toggleSidebar(){
- const s=document.querySelector('.sidebar')
- s.classList.toggle('open')
-}
-
-function togglePreview(){
- const p=document.querySelector('.preview')
- p.classList.toggle('open')
-}
-
-
-// scene collapse toggle
-function toggleSceneCollapse(id){
- const el=document.querySelector(`[data-scene-id="${id}"]`)
- if(!el) return
- el.classList.toggle('collapsed')
-}
-
-// inject toggle buttons after render
-const _origRender = typeof render==='function'?render:null
-if(_origRender){
- render=function(){
-  _origRender()
-  document.querySelectorAll('.scene').forEach(sc=>{
-   if(sc.querySelector('.sceneToggle')) return
-   const head=sc.querySelector('.sceneTitle')||sc.firstChild
-   if(!head) return
-   const id=sc.dataset.sceneId
-   const t=document.createElement('span')
-   t.textContent='▾'
-   t.className='sceneToggle'
-   t.onclick=(e)=>{e.stopPropagation();toggleSceneCollapse(id)}
-   head.prepend(t)
-  })
- }
-}
-
-// simple flowchart view
-function openFlow(){
- const w=window.open('','flow','width=900,height=700')
- let html=`<html><head><title>Flow</title><style>
- body{font-family:sans-serif;background:#111;color:#eee;padding:20px}
- .node{padding:10px 14px;border:1px solid #444;border-radius:8px;margin:8px;display:inline-block;background:#1e1e1e}
- .col{margin-bottom:20px}
- </style></head><body>`
-
- data.scenes.forEach((s,i)=>{
-  html+=`<div class="node">${i+1}. ${s.title||'Scene'}</div>`
- })
-
- html+='</body></html>'
- w.document.write(html)
-}
 
+    // セクションの開閉を切り替える関数
+const toggleSection = (element) => {
+    // タイトルの次の要素（collapsible-content）を取得
+    const content = element.nextElementSibling;
+    
+    // タイトルに 'collapsed' クラスを付け外し（矢印の向きが変わる）
+    element.classList.toggle('collapsed');
+    
+    // コンテンツに 'hidden' クラスを付け外し（表示/非表示が変わる）
+    content.classList.toggle('hidden');
+};
+
+// --- 1. 基本設定 & ユーティリティ ---
+const rollDice = (n, m) => {
+    let total = 0;
+    for (let i = 0; i < n; i++) total += Math.floor(Math.random() * m) + 1;
+    return total;
+};
+
+const defaultSkills = [
+    { name: "回避", base: "dex*2", cat: "戦闘" }, { name: "キック", base: 25, cat: "戦闘" },
+    { name: "組み付き", base: 25, cat: "戦闘" }, { name: "こぶし", base: 50, cat: "戦闘" },
+    { name: "頭突き", base: 10, cat: "戦闘" }, { name: "投擲", base: 25, cat: "戦闘" },
+    { name: "マーシャルアーツ", base: 1, cat: "戦闘" }, { name: "拳銃", base: 20, cat: "射撃" },
+    { name: "サブマシンガン", base: 15, cat: "射撃" }, { name: "ショットガン", base: 30, cat: "射撃" },
+    { name: "マシンガン", base: 15, cat: "射撃" }, { name: "ライフル", base: 25, cat: "射撃" },
+    
+    { name: "応急手当", base: 30, cat: "探索" }, { name: "鍵開け", base: 1, cat: "探索" },
+    { name: "隠す", base: 15, cat: "探索" }, { name: "隠れる", base: 10, cat: "探索" },
+    { name: "聞き耳", base: 25, cat: "探索" }, { name: "忍び歩き", base: 10, cat: "探索" },
+    { name: "写真術", base: 10, cat: "探索" }, { name: "精神分析", base: 1, cat: "探索" },
+    { name: "追跡", base: 10, cat: "探索" }, { name: "登攀", base: 40, cat: "探索" },
+    { name: "図書館", base: 25, cat: "探索" }, { name: "目星", base: 25, cat: "探索" },
+    
+    { name: "運転", base: 20, cat: "行動" }, { name: "機械修理", base: 20, cat: "行動" },
+    { name: "重機械操作", base: 1, cat: "行動" }, { name: "乗馬", base: 5, cat: "行動" },
+    { name: "水泳", base: 25, cat: "行動" }, { name: "製作", base: 5, cat: "行動" },
+    { name: "操縦", base: 1, cat: "行動" }, { name: "跳躍", base: 25, cat: "行動" },
+    { name: "電気修理", base: 10, cat: "行動" }, { name: "ナビゲート", base: 10, cat: "行動" },
+    { name: "変装", base: 1, cat: "行動" },
+    
+    { name: "言いくるめ", base: 5, cat: "交渉" }, { name: "信用", base: 15, cat: "交渉" },
+    { name: "説得", base: 15, cat: "交渉" }, { name: "値切り", base: 5, cat: "交渉" },
+    { name: "母国語", base: "dex*5", cat: "交渉" },
+    
+    { name: "医学", base: 5, cat: "知識" }, { name: "オカルト", base: 5, cat: "知識" },
+    { name: "化学", base: 1, cat: "知識" }, { name: "クトゥルフ神話", base: 0, cat: "知識" },
+    { name: "芸術", base: 5, cat: "知識" }, { name: "経理", base: 10, cat: "知識" },
+    { name: "考古学", base: 1, cat: "知識" }, { name: "コンピューター", base: 1, cat: "知識" },
+    { name: "心理学", base: 5, cat: "知識" }, { name: "人類学", base: 1, cat: "知識" },
+    { name: "生物学", base: 1, cat: "知識" }, { name: "地質学", base: 1, cat: "知識" },
+    { name: "電子工学", base: 1, cat: "知識" }, { name: "天文学", base: 1, cat: "知識" },
+    { name: "博物学", base: 10, cat: "知識" }, { name: "物理学", base: 1, cat: "知識" },
+    { name: "法律", base: 5, cat: "知識" }, { name: "薬学", base: 1, cat: "知識" },
+    { name: "歴史", base: 20, cat: "知識" }
+];
+
+// ダメージボーナス (DB) 計算ロジック
+const getDamageBonus = (str, siz) => {
+    const sum = str + siz;
+    if (sum <= 12) return "-1d6";
+    if (sum <= 16) return "-1d4";
+    if (sum <= 24) return "0";
+    if (sum <= 32) return "+1d4";
+    if (sum <= 40) return "+1d6";
+    return "+2d6";
+};
+
+// --- 2. 更新・計算系関数 ---
+
+const updateBar = (type) => {
+    const currentInput = document.getElementById(`${type}-current`);
+    const maxSpan = document.getElementById(`${type}-max`);
+    const barFill = document.getElementById(`${type}-bar`);
+    if(!currentInput || !maxSpan || !barFill) return;
+
+    const current = parseInt(currentInput.value) || 0;
+    const max = parseInt(maxSpan.textContent) || 1;
+    let percentage = (current / max) * 100;
+    barFill.style.width = `${Math.min(100, Math.max(0, percentage))}%`;
+
+    if (percentage <= 20) barFill.classList.add('danger');
+    else barFill.classList.remove('danger');
+};
+
+const updateStatGauges = () => {
+    const statIds = [
+        'str', 'con', 'pow', 'dex', 'app', 'siz', 'int', 'edu', 'luk', 
+        'idea', 'knowledge', 'hp-max-stat', 'mp-max-stat', 'san-max-stat'
+    ];
+    
+    statIds.forEach(id => {
+        const input = document.getElementById(id);
+        // IDが hp-max-stat ならバーのIDは hp-max-stat-bar になる
+        const bar = document.getElementById(`${id}-bar`);
+        if(!input || !bar) return;
+
+        const val = parseInt(input.value) || 0;
+        
+        // 各ステータスが「何ポイントで100%（満タン）か」を設定
+        let max = 18;
+        if (id === 'edu') max = 21;
+        // %系の能力値
+        if (['luk', 'idea', 'knowledge', 'san-max-stat'].includes(id)) max = 99;
+        // HP/MPは20〜25くらいを最大値の目安にする
+        if (['hp-max-stat', 'mp-current'].includes(id)) max = 20;
+        if (id === 'hp-max-stat') max = 20;
+        if (id === 'mp-max-stat') max = 20;
+
+        let percentage = (val / max) * 100;
+        bar.style.width = `${Math.min(100, Math.max(0, percentage))}%`;
+
+        // 80%以上で色を変える演出
+        if (percentage >= 80) bar.classList.add('heroic');
+        else bar.classList.remove('heroic');
+    });
+};
+
+const updateAllSkillPoints = () => {
+    const edu = parseInt(document.getElementById('edu').value) || 0;
+    const int = parseInt(document.getElementById('int').value) || 0;
+    const maxJobPts = edu * 20;
+    const maxInterestPts = int * 10;
+
+    let usedJobPts = 0;
+    let usedInterestPts = 0;
+
+    defaultSkills.forEach((_, index) => {
+        const j = document.getElementById(`skill-job-${index}`);
+        const i = document.getElementById(`skill-interest-${index}`);
+        if(j) usedJobPts += parseInt(j.value) || 0;
+        if(i) usedInterestPts += parseInt(i.value) || 0;
+    });
+
+    const jobDisp = document.getElementById('job-pts-left');
+    const intDisp = document.getElementById('interest-pts-left');
+    if(jobDisp && intDisp) {
+        const jobLeft = maxJobPts - usedJobPts;
+        const intLeft = maxInterestPts - usedInterestPts;
+        jobDisp.textContent = jobLeft;
+        intDisp.textContent = intLeft;
+        jobDisp.style.color = jobLeft < 0 ? "#e64553" : "var(--accent)";
+        intDisp.style.color = intLeft < 0 ? "#e64553" : "var(--accent)";
+    }
+};
+
+const updateSkillTotal = (index) => {
+    const baseEl = document.getElementById(`skill-base-${index}`);
+    const jobEl = document.getElementById(`skill-job-${index}`);
+    const intEl = document.getElementById(`skill-interest-${index}`);
+    const totalEl = document.getElementById(`skill-total-${index}`);
+
+    if(baseEl && jobEl && intEl && totalEl) {
+        const total = (parseInt(baseEl.value) || 0) + (parseInt(jobEl.value) || 0) + (parseInt(intEl.value) || 0);
+        totalEl.textContent = total;
+        updateAllSkillPoints();
+    }
+};
+
+const updateDerivedStats = () => {
+    const getVal = (id) => {
+        const el = document.getElementById(id);
+        if (!el) return 0;
+        const v = el.value;
+        return (v === "-" || v === "") ? 0 : parseInt(v);
+    };
+
+    const str = getVal('str');
+    const con = getVal('con');
+    const pow = getVal('pow');
+    const dex = getVal('dex');
+    const siz = getVal('siz');
+    const int = getVal('int');
+    const edu = getVal('edu');
+
+    // 基本ステータスの最大値
+    const hpMax = Math.ceil((con + siz) / 2);
+    const mpMax = pow;
+    const sanMax = pow * 5;
+
+    // 追加ステータスの計算
+    const idea = int * 5;
+    const knowledge = edu * 5;
+    const luck = pow * 5;
+    const db = getDamageBonus(str, siz);
+
+    // 各表示場所への反映
+    if(document.getElementById('hp-max-stat')) document.getElementById('hp-max-stat').value = hpMax;
+    if(document.getElementById('mp-max-stat')) document.getElementById('mp-max-stat').value = mpMax;
+    if(document.getElementById('san-max-stat')) document.getElementById('san-max-stat').value = sanMax;
+    
+    document.getElementById('hp-max').textContent = hpMax || "-";
+    document.getElementById('mp-max').textContent = mpMax || "-";
+    document.getElementById('san-max').textContent = sanMax || "-";
+    
+    document.getElementById('luk').value = luck;
+    document.getElementById('idea').value = idea;
+    document.getElementById('knowledge').value = knowledge;
+    
+    // 能力値欄のDB
+    if(document.getElementById('db-stat-val')) {
+        document.getElementById('db-stat-val').value = db;
+    }
+    // 戦闘欄のDB（もし残していれば）
+    if(document.getElementById('db-val')) {
+        document.getElementById('db-val').textContent = db;
+    }
+
+    updateBar('hp'); 
+    updateBar('mp'); 
+    updateBar('san');
+    updateStatGauges(); // ゲージの更新
+    updateAllSkillPoints();
+};
+
+const initSkills = () => {
+    const container = document.getElementById('skill-list');
+    if(!container) return;
+    container.innerHTML = '';
+    const dex = parseInt(document.getElementById('dex').value) || 0;
+
+    defaultSkills.forEach((skill, index) => {
+        const div = document.createElement('div');
+        div.className = 'skill-item';
+        let baseVal = (skill.base === "dex*2") ? dex * 2 : skill.base;
+
+        div.innerHTML = `
+            <span class="skill-name">${skill.name}</span>
+            <input type="number" id="skill-base-${index}" value="${baseVal}" readonly tabindex="-1">
+            <input type="number" id="skill-job-${index}" class="skill-input" value="0" min="0">
+            <input type="number" id="skill-interest-${index}" class="skill-input" value="0" min="0">
+            <div id="skill-total-${index}" class="skill-total">${baseVal}</div>
+        `;
+        container.appendChild(div);
+
+        div.querySelectorAll('.skill-input').forEach(input => {
+            input.addEventListener('input', () => {
+                updateSkillTotal(index);
+                autoSave();
+            });
+        });
+    });
+    updateAllSkillPoints();
+};
+
+// --- 3. セーブ・ロード・インポート・エクスポート ---
+
+const getAllCharacterData = () => {
+    const data = {
+        profile: {
+            name: document.querySelector('input[placeholder="キャラクター名"]')?.value || "",
+            job: document.querySelector('input[placeholder="職業"]')?.value || "",
+            age: document.querySelector('input[placeholder="年齢"]')?.value || "",
+            gender: document.querySelector('input[placeholder="性別"]')?.value || "-"
+        },
+        stats: {},
+        currentStatus: {
+            hp: document.getElementById('hp-current')?.value || 0,
+            mp: document.getElementById('mp-current')?.value || 0,
+            san: document.getElementById('san-current')?.value || 0
+        },
+        skills: [],
+        weapons: [],
+        inventory: [] // 配列として保存
+    };
+
+    ['str', 'con', 'pow', 'dex', 'app', 'siz', 'int', 'edu'].forEach(id => {
+        data.stats[id] = document.getElementById(id)?.value || 0;
+    });
+
+    defaultSkills.forEach((_, index) => {
+        data.skills.push({
+            job: document.getElementById(`skill-job-${index}`)?.value || 0,
+            interest: document.getElementById(`skill-interest-${index}`)?.value || 0
+        });
+    });
+
+    document.querySelectorAll('.weapon-item').forEach(item => {
+        const name = item.querySelector('.w-name')?.value;
+        if(name) { // 武器名がある場合のみ保存
+            data.weapons.push({
+                name: name,
+                rate: item.querySelector('.w-rate').value,
+                dmg: item.querySelector('.w-dmg').value,
+                cnt: item.querySelector('.w-cnt').value,
+                ammo: item.querySelector('.w-ammo').value
+            });
+        }
+    });
+
+    // 所持品リストの取得
+    document.querySelectorAll('.inventory-item').forEach(item => {
+        const name = item.querySelector('.i-name')?.value;
+        if(name) {
+            data.inventory.push({
+                name: name,
+                note: item.querySelector('.i-note').value
+            });
+        }
+    });
+
+    return data;
+};
+
+const applyCharacterData = (data) => {
+    if (!data) return;
+    try {
+        if (data.profile) {
+            document.querySelector('input[placeholder="キャラクター名"]').value = data.profile.name || "";
+            document.querySelector('input[placeholder="職業"]').value = data.profile.job || "";
+            document.querySelector('input[placeholder="年齢"]').value = data.profile.age || "";
+            document.querySelector('input[placeholder="性別"]').value = data.profile.gender || "";
+        }
+
+        if (data.stats) {
+            for (let key in data.stats) {
+                const el = document.getElementById(key);
+                if (el) el.value = data.stats[key];
+            }
+        }
+
+        updateDerivedStats();
+        initSkills();
+
+        if (data.currentStatus) {
+            document.getElementById('hp-current').value = data.currentStatus.hp;
+            document.getElementById('mp-current').value = data.currentStatus.mp;
+            document.getElementById('san-current').value = data.currentStatus.san;
+            updateBar('hp'); updateBar('mp'); updateBar('san');
+        }
+
+        if (data.skills) {
+            data.skills.forEach((s, index) => {
+                const j = document.getElementById(`skill-job-${index}`);
+                const i = document.getElementById(`skill-interest-${index}`);
+                if (j) j.value = s.job;
+                if (i) i.value = s.interest;
+                updateSkillTotal(index);
+            });
+        }
+
+        // 武器リストの復元
+        const weaponContainer = document.getElementById('weapon-list');
+        weaponContainer.innerHTML = ''; 
+        if (data.weapons && data.weapons.length > 0) {
+            data.weapons.forEach(w => addWeaponRow(w));
+        }
+
+        // 所持品リストの復元（ここが壊れていました）
+        const invContainer = document.getElementById('inventory-list');
+        invContainer.innerHTML = '';
+        if (data.inventory && Array.isArray(data.inventory)) {
+            data.inventory.forEach(item => addInventoryRow(item));
+        }
+    } catch (e) { console.error("Apply error:", e); }
+};
+
+const addWeaponRow = (w = {name: '', rate: '', dmg: '', cnt: '', ammo: ''}) => {
+    const container = document.getElementById('weapon-list');
+    const div = document.createElement('div');
+    div.className = 'skill-item weapon-item';
+    // 削除ボタンを追加するために列を 0.5fr 分増やします
+    div.style.gridTemplateColumns = '2fr 1fr 1fr 1fr 1fr 0.5fr';
+    
+    div.innerHTML = `
+        <input type="text" class="w-name" placeholder="武器名" value="${w.name}">
+        <input type="number" class="w-rate" placeholder="成功率" value="${w.rate}">
+        <input type="text" class="w-dmg" placeholder="ダメージ" value="${w.dmg}">
+        <input type="text" class="w-cnt" placeholder="回数" value="${w.cnt}">
+        <input type="text" class="w-ammo" placeholder="装弾数" value="${w.ammo}">
+        <button class="delete-weapon" style="background:none; border:none; color:#e64553; cursor:pointer; font-size:1.2rem; padding:0;">×</button>
+    `;
+    container.appendChild(div);
+    
+    // 削除ボタンのイベント
+    div.querySelector('.delete-weapon').addEventListener('click', () => {
+        if (confirm('この武器を削除しますか？')) {
+            div.remove();
+            autoSave(); // 削除した状態を保存
+        }
+    });
+
+    // 入力時の自動保存
+    div.querySelectorAll('input').forEach(i => i.addEventListener('input', autoSave));
+};
+
+// ボタンイベントの登録
+document.getElementById('add-weapon').addEventListener('click', () => {
+    addWeaponRow();
+    autoSave();
+});
+
+const addInventoryRow = (item = {name: '', note: ''}) => {
+    const container = document.getElementById('inventory-list');
+    const div = document.createElement('div');
+    div.className = 'skill-item inventory-item';
+    div.style.gridTemplateColumns = '2fr 1fr 0.5fr';
+    
+    div.innerHTML = `
+        <input type="text" class="i-name" placeholder="アイテム名" value="${item.name}">
+        <input type="text" class="i-note" placeholder="個数など" value="${item.note}">
+        <button class="delete-item" style="background:none; border:none; color:#e64553; cursor:pointer; font-size:1.2rem; padding:0;">×</button>
+    `;
+    container.appendChild(div);
+    
+    div.querySelector('.delete-item').addEventListener('click', () => {
+        div.remove();
+        autoSave();
+    });
+
+    div.querySelectorAll('input').forEach(i => i.addEventListener('input', autoSave));
+};
+
+// ボタンイベントの登録
+document.getElementById('add-item').addEventListener('click', () => {
+    addInventoryRow();
+    autoSave();
+});
+
+const autoSave = () => {
+    localStorage.setItem('coc_char_data', JSON.stringify(getAllCharacterData()));
+};
+
+// --- 4. イベント登録 ---
+
+document.getElementById('roll-all').addEventListener('click', () => {
+    const results = {
+        str: rollDice(3, 6), con: rollDice(3, 6), pow: rollDice(3, 6),
+        dex: rollDice(3, 6), app: rollDice(3, 6), siz: rollDice(2, 6) + 6,
+        int: rollDice(2, 6) + 6, edu: rollDice(3, 6) + 3
+    };
+    
+    let completed = 0;
+    const keys = Object.keys(results);
+
+    keys.forEach((key) => {
+        const obj = document.getElementById(key);
+        let start = 0, end = results[key], duration = 400, startTimestamp = null;
+        
+        const step = (timestamp) => {
+            if (!startTimestamp) startTimestamp = timestamp;
+            const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+            obj.value = Math.floor(progress * (end - start) + start);
+            updateStatGauges();
+            
+            if (progress < 1) {
+                window.requestAnimationFrame(step);
+            } else {
+                updateDerivedStats();
+                if(key === 'dex') initSkills();
+                
+                completed++;
+                // すべての能力値の演出が終わったら、現在値をMAXにする
+                if (completed === keys.length) {
+                    document.getElementById('hp-current').value = document.getElementById('hp-max').textContent;
+                    document.getElementById('mp-current').value = document.getElementById('mp-max').textContent;
+                    document.getElementById('san-current').value = document.getElementById('san-max').textContent;
+                    
+                    // バーの見た目を再更新
+                    updateBar('hp'); updateBar('mp'); updateBar('san');
+                    autoSave();
+                }
+            }
+        };
+        window.requestAnimationFrame(step);
+    });
+});
+
+['str', 'con', 'pow', 'dex', 'app', 'siz', 'int', 'edu'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+        el.addEventListener('input', () => {
+            if(id === 'dex') initSkills();
+            updateDerivedStats();
+            autoSave(); // 入力ごとに保存
+        });
+    }
+});
+
+// エクスポート・インポート
+document.getElementById('export-btn').addEventListener('click', () => {
+    const data = getAllCharacterData();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (data.profile.name || "character") + ".coc6";
+    a.click();
+});
+
+document.getElementById('import-btn-fake').addEventListener('click', () => document.getElementById('import-btn').click());
+
+document.getElementById('import-btn').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        try {
+            const data = JSON.parse(event.target.result);
+            applyCharacterData(data);
+            autoSave();
+            alert("インポートしました！");
+        } catch (err) { alert("形式が不正です"); }
+    };
+    reader.readAsText(file);
+});
+
+// 現在値の変更
+['hp', 'mp', 'san'].forEach(type => {
+    document.getElementById(`${type}-current`).addEventListener('input', () => {
+        updateBar(type);
+        autoSave();
+    });
+});
+
+// 初期起動
+window.onload = () => {
+    const saved = localStorage.getItem('coc_char_data');
+    if (saved) {
+        applyCharacterData(JSON.parse(saved));
+    } else {
+        initSkills(); 
+        updateDerivedStats();
+        addWeaponRow();    // 初期行を追加
+        addInventoryRow(); // 初期行を追加
+    }
+};
+
+// サイドバーの開閉を制御する関数（モバイル用）
+const toggleSidebar = () => {
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.getElementById('sidebar-toggle');
+    const overlay = document.getElementById('sidebar-overlay'); // ★追加
+    
+    sidebar.classList.toggle('open');
+    toggleBtn.classList.toggle('active');
+    
+    // オーバーレイの表示切り替え（display: blockにするためクラスを制御）
+    if (sidebar.classList.contains('open')) {
+        overlay.style.display = 'block';
+    } else {
+        overlay.style.display = 'none';
+    }
+};
+
+// 開閉ボタンにクリックイベントを設定
+document.getElementById('sidebar-toggle').addEventListener('click', toggleSidebar);
+
+// 画面サイズが変更された時、モバイル表示からデスクトップ表示に戻ったら、
+// サイドバーが開いたままにならないようにクラスを削除
+window.addEventListener('resize', () => {
+    if (window.innerWidth > 768) {
+        document.getElementById('sidebar').classList.remove('open');
+        document.getElementById('sidebar-toggle').classList.remove('active');
+    }
+});
 </script>
 </body>
 </html>

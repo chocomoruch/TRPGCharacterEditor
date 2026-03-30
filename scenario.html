@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#89b4fa">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <title>TRPGシナリオ通過チェック</title>
+    <style>
+        :root { --primary: #6200ee; --bg: #f5f5f5; }
+        body { font-family: sans-serif; background: var(--bg); padding: 20px; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        h1 { font-size: 1.2rem; border-left: 4px solid var(--primary); padding-left: 10px; }
+        
+        .section { margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
+        input[type="text"] { padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 60%; }
+        button { padding: 8px 15px; cursor: pointer; background: var(--primary); color: white; border: none; border-radius: 4px; }
+        
+        .scenario-list { list-style: none; padding: 0; }
+        .scenario-item { display: flex; justify-content: space-between; align-items: center; background: #fff; border: 1px solid #ddd; margin: 5px 0; padding: 10px; border-radius: 4px; }
+        
+        /* 通過状況ボタンのスタイル */
+        .status-btn { background: #e0e0e0; color: #666; font-size: 0.8rem; }
+        .status-btn.active { background: #4caf50; color: white; } /* 通過済み */
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>TRPG通過済みチェック (Room: <span id="room-id-display">----</span>)</h1>
+
+    <div class="section" id="host-area">
+        <h3>GM用：シナリオリスト作成</h3>
+        <input type="text" id="scenario-input" placeholder="シナリオ名を入力...">
+        <button onclick="addScenario()">追加</button>
+        <ul id="scenario-list" class="scenario-list">
+            </ul>
+    </div>
+
+    <div class="section" id="player-area">
+        <h3>PL用：あなたの回答</h3>
+        <input type="text" id="player-name" placeholder="あなたの名前...">
+        <div id="check-list">
+            <p style="color: #888;">シナリオが追加されるとここにボタンが出ます</p>
+        </div>
+        <button onclick="saveStatus()" style="margin-top: 10px; width: 100%;">回答を送信・更新</button>
+    </div>
+</div>
+
+<script>
+    // 仮のデータ管理（後でFirestoreに置き換え）
+    let scenarios = [];
+
+    function addScenario() {
+        const input = document.getElementById('scenario-input');
+        if (!input.value) return;
+        
+        scenarios.push(input.value);
+        updateUI();
+        input.value = '';
+    }
+
+    function updateUI() {
+        const list = document.getElementById('scenario-list');
+        const checkList = document.getElementById('check-list');
+        
+        list.innerHTML = scenarios.map(s => `<li class="scenario-item">${s}</li>`).join('');
+        
+        // PL側のチェックボタン生成
+        checkList.innerHTML = scenarios.map((s, index) => `
+            <div class="scenario-item">
+                <span>${s}</span>
+                <button class="status-btn" onclick="this.classList.toggle('active')">未通過</button>
+            </div>
+        `).join('');
+    }
+
+    // URLからルームIDを取得する（例: index.html#myroom）
+    const roomId = window.location.hash.substring(1) || "default";
+    document.getElementById('room-id-display').innerText = roomId;
+</script>
+
+</body>
+</html>
