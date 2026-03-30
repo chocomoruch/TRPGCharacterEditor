@@ -552,11 +552,10 @@ input:focus {
             </div>
             <div class="input-group">
                 <input type="number" placeholder="年齢">
-                <select>
-                    <option>男性</option>
-                    <option>女性</option>
-                    <option>その他</option>
-                </select>
+                <input type="text" placeholder="性別">
+                <input type="number" placeholder="身長">
+                <input type="text" placeholder="体重">
+                <input type="text" placeholder="出身地">
             </div>
         </section>
 
@@ -751,7 +750,7 @@ const defaultSkills = [
     { name: "重機械操作", base: 1, cat: "行動" }, { name: "乗馬", base: 5, cat: "行動" },
     { name: "水泳", base: 25, cat: "行動" }, { name: "製作", base: 5, cat: "行動" },
     { name: "操縦", base: 1, cat: "行動" }, { name: "跳躍", base: 25, cat: "行動" },
-    { name: "電気修理", base: 10, cat: "行動" }, { name: "変装", base: 10, cat: "行動" },
+    { name: "電気修理", base: 10, cat: "行動" }, { name: "ナビゲート", base: 10, cat: "行動" },
     { name: "変装", base: 1, cat: "行動" },
     
     { name: "言いくるめ", base: 5, cat: "交渉" }, { name: "信用", base: 15, cat: "交渉" },
@@ -966,7 +965,7 @@ const getAllCharacterData = () => {
             name: document.querySelector('input[placeholder="キャラクター名"]')?.value || "",
             job: document.querySelector('input[placeholder="職業"]')?.value || "",
             age: document.querySelector('input[placeholder="年齢"]')?.value || "",
-            gender: document.querySelector('select')?.value || "-"
+            gender: document.querySelector('input[placeholder="性別"]')?.value || "-"
         },
         stats: {},
         currentStatus: {
@@ -1024,7 +1023,7 @@ const applyCharacterData = (data) => {
             document.querySelector('input[placeholder="キャラクター名"]').value = data.profile.name || "";
             document.querySelector('input[placeholder="職業"]').value = data.profile.job || "";
             document.querySelector('input[placeholder="年齢"]').value = data.profile.age || "";
-            document.querySelector('select').value = data.profile.gender || "男性";
+            document.querySelector('input[placeholder="性別"]').value = data.profile.gender || "";
         }
 
         if (data.stats) {
