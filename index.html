@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Character Sheet Builder</title>
+    <title>TRPGキャラシエディター</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#89b4fa">
     <link rel="apple-touch-icon" href="icon-192.png">
@@ -344,7 +344,7 @@ input:focus {
 
 .skill-header, .skill-item {
     display: grid;
-    grid-template-columns: 2fr 1fr 1fr 1fr 1fr; /* 5列構成 */
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr;
     gap: 5px;
     align-items: center;
     padding: 5px;
@@ -467,7 +467,69 @@ input:focus {
 .sidebar-toggle-btn.active span:nth-child(3) {
     transform: translateY(-7px) rotate(-45deg);
 }
+.hide-unused .skill-item.unused {
+    display: none;
+}
+/* 全体ラベル */
+.toggle-switch {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+}
 
+/* チェックボックス本体は消す */
+.toggle-switch input {
+    display: none;
+}
+
+/* スイッチの土台 */
+.slider {
+    position: relative;
+    width: 40px;
+    height: 20px;
+    background: #444;
+    border-radius: 999px;
+    transition: 0.3s;
+}
+
+/* 丸いやつ */
+.slider::before {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    left: 2px;
+    top: 2px;
+    background: white;
+    border-radius: 50%;
+    transition: 0.3s;
+}
+
+/* ON状態 */
+.toggle-switch input:checked + .slider {
+    background: var(--accent);
+}
+
+/* 丸が動く */
+.toggle-switch input:checked + .slider::before {
+    transform: translateX(20px);
+}
+
+/* テキスト */
+.label-text {
+    font-size: 0.9rem;
+    color: var(--text);
+}
+
+/* ホバーでちょい光る */
+.toggle-switch:hover .slider {
+    box-shadow: 0 0 8px rgba(137, 180, 250, 0.5);
+}
+.slider::before {
+    transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
     </style>
 </head>
 <body>
@@ -541,6 +603,14 @@ input:focus {
             <div class="status-label-row" style="margin-top: 10px;">
                 <span class="status-label">興味技能ポイント残</span>
                 <span id="interest-pts-left" class="status-val" style="font-size: 1.1rem;">0</span>
+            </div>
+            <br>
+            <div style="margin-bottom:10px; text-align:right;">
+            <label class="toggle-switch">
+                <span class="label-text">未使用技能を隠す</span>
+                <input type="checkbox" id="toggle-unused-skill">
+                <span class="slider"></span>
+            </label>
             </div>
             </div>
         </div>
@@ -668,6 +738,7 @@ input:focus {
             <span>初期値</span>
             <span>職業P</span>
             <span>興味P</span>
+            <span>補正値</span>
             <span>合計</span>
         </div>
         <div id="skill-list" class="skill-container">
@@ -759,7 +830,7 @@ const defaultSkills = [
     
     { name: "言いくるめ", base: 5, cat: "交渉" }, { name: "信用", base: 15, cat: "交渉" },
     { name: "説得", base: 15, cat: "交渉" }, { name: "値切り", base: 5, cat: "交渉" },
-    { name: "母国語", base: "dex*5", cat: "交渉" },
+    { name: "母国語", base: "edu*5", cat: "交渉" },
     
     { name: "医学", base: 5, cat: "知識" }, { name: "オカルト", base: 5, cat: "知識" },
     { name: "化学", base: 1, cat: "知識" }, { name: "クトゥルフ神話", base: 0, cat: "知識" },
@@ -772,6 +843,7 @@ const defaultSkills = [
     { name: "法律", base: 5, cat: "知識" }, { name: "薬学", base: 1, cat: "知識" },
     { name: "歴史", base: 20, cat: "知識" }
 ];
+const MYTH_INDEX = 25; // ←自分の環境に合わせて！
 
 // ダメージボーナス (DB) 計算ロジック
 const getDamageBonus = (str, siz) => {
@@ -860,18 +932,43 @@ const updateAllSkillPoints = () => {
         jobDisp.style.color = jobLeft < 0 ? "#e64553" : "var(--accent)";
         intDisp.style.color = intLeft < 0 ? "#e64553" : "var(--accent)";
     }
+    updateSanLimit();
 };
 
 const updateSkillTotal = (index) => {
     const baseEl = document.getElementById(`skill-base-${index}`);
     const jobEl = document.getElementById(`skill-job-${index}`);
     const intEl = document.getElementById(`skill-interest-${index}`);
+    const bonusEl = document.getElementById(`skill-bonus-${index}`); // ← これ追加！！
     const totalEl = document.getElementById(`skill-total-${index}`);
 
     if(baseEl && jobEl && intEl && totalEl) {
-        const total = (parseInt(baseEl.value) || 0) + (parseInt(jobEl.value) || 0) + (parseInt(intEl.value) || 0);
+        const total = 
+            (parseInt(baseEl.value) || 0) +
+            (parseInt(jobEl.value) || 0) +
+            (parseInt(intEl.value) || 0) +
+            (parseInt(bonusEl?.value) || 0); // ← 安全にするならこれ
+
         totalEl.textContent = total;
         updateAllSkillPoints();
+    }
+updateSAN();
+};
+
+const updateSanLimit = () => {
+    const mythTotalEl = document.getElementById(`skill-total-${MYTH_INDEX}`);
+    const sanInput = document.getElementById('san-value');
+
+    if (!mythTotalEl || !sanInput) return;
+
+    const myth = parseInt(mythTotalEl.textContent) || 0;
+    const maxSan = 99 - myth;
+
+    sanInput.max = maxSan;
+
+    // 上限超えてたら強制調整
+    if ((parseInt(sanInput.value) || 0) > maxSan) {
+        sanInput.value = maxSan;
     }
 };
 
@@ -947,13 +1044,16 @@ const initSkills = () => {
             <input type="number" id="skill-base-${index}" value="${baseVal}" readonly tabindex="-1">
             <input type="number" id="skill-job-${index}" class="skill-input" value="0" min="0">
             <input type="number" id="skill-interest-${index}" class="skill-input" value="0" min="0">
+            <input type="number" id="skill-bonus-${index}" class="skill-input" value="0">
             <div id="skill-total-${index}" class="skill-total">${baseVal}</div>
         `;
+
         container.appendChild(div);
 
         div.querySelectorAll('.skill-input').forEach(input => {
             input.addEventListener('input', () => {
                 updateSkillTotal(index);
+                updateSkillVisibility();
                 autoSave();
             });
         });
@@ -989,7 +1089,8 @@ const getAllCharacterData = () => {
     defaultSkills.forEach((_, index) => {
         data.skills.push({
             job: document.getElementById(`skill-job-${index}`)?.value || 0,
-            interest: document.getElementById(`skill-interest-${index}`)?.value || 0
+            interest: document.getElementById(`skill-interest-${index}`)?.value || 0,
+            bonus: document.getElementById(`skill-bonus-${index}`)?.value || 0
         });
     });
 
@@ -1051,9 +1152,10 @@ const applyCharacterData = (data) => {
             data.skills.forEach((s, index) => {
                 const j = document.getElementById(`skill-job-${index}`);
                 const i = document.getElementById(`skill-interest-${index}`);
-                if (j) j.value = s.job;
-                if (i) i.value = s.interest;
+                const b = document.getElementById(`skill-bonus-${index}`);
+                if (b) b.value = s.bonus || 0;
                 updateSkillTotal(index);
+                updateSkillVisibility();
             });
         }
 
@@ -1271,11 +1373,69 @@ window.addEventListener('resize', () => {
         document.getElementById('sidebar-toggle').classList.remove('active');
     }
 });
+
+const updateSkillVisibility = () => {
+    const container = document.getElementById('skill-content');
+    const checkbox = document.getElementById('toggle-unused-skill');
+    if (!container || !checkbox) return;
+
+    defaultSkills.forEach((_, index) => {
+        const item = document.getElementById(`skill-job-${index}`)?.closest('.skill-item');
+        const job = parseInt(document.getElementById(`skill-job-${index}`)?.value) || 0;
+        const interest = parseInt(document.getElementById(`skill-interest-${index}`)?.value) || 0;
+        const bonus = parseInt(document.getElementById(`skill-bonus-${index}`)?.value) || 0;
+
+        if (!item) return;
+
+        if (job === 0 && interest === 0 && bonus === 0) {
+            item.classList.add('unused');
+        } else {
+            item.classList.remove('unused');
+        }
+    });
+
+    if (checkbox.checked) {
+        container.classList.add('hide-unused');
+    } else {
+        container.classList.remove('hide-unused');
+    }
+
+    localStorage.setItem('hide_unused_skill', checkbox.checked);
+};
+
+window.addEventListener('load', () => {
+    const checkbox = document.getElementById('toggle-unused-skill');
+    const saved = localStorage.getItem('hide_unused_skill') === 'true';
+
+    checkbox.checked = saved;
+    updateSkillVisibility();
+
+    checkbox.addEventListener('change', updateSkillVisibility);
+
+    updateSAN();
+});
+
+const updateSAN = () => {
+    const mythIndex = defaultSkills.findIndex(s => s.name === "クトゥルフ神話");
+    if (mythIndex === -1) return;
+
+    const mythTotalEl = document.getElementById(`skill-total-${mythIndex}`);
+    const sanEl = document.getElementById('san-base'); // SAN初期値のinput
+
+    if (!mythTotalEl || !sanEl) return;
+
+    const myth = parseInt(mythTotalEl.textContent) || 0;
+
+    const sanBase = 99 - myth;
+
+    sanEl.value = sanBase;
+};
 </script>
 
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
+    updateSAN();
       navigator.serviceWorker.register('./sw.js')
         .then(reg => console.log('SW registered!', reg))
         .catch(err => console.err('SW registration failed!', err));
